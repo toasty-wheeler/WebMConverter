@@ -13,6 +13,7 @@ namespace WebMConverter
         public MultipleTrimForm(MultipleTrimFilter filterToEdit = null)
         {
             InitializeComponent();
+            Theme.Register(this);
 
             if (filterToEdit != null)
             {

@@ -1,12 +1,14 @@
 v2.27.0 (toasty-wheeler fork)
 =======
-- Added a live preview panel on the right side of the window.
+- Added a live preview panel between the Main box and the option tabs (drag the divider to resize it).
   - Shows the actual output of the AviSynth script (all filters applied), rendered in-process with AviSynth.
   - Updates by itself when you add, edit or remove a filter, change Levels/Deinterlace/Denoise, or edit the script in Advanced mode.
   - Seek bar, frame stepping (arrow keys / mouse wheel), play/pause (Space), output resolution, frame rate and length.
   - Script errors are shown in the panel instead of a popup.
   - "Hide preview" in the status bar collapses it; the choice is remembered. The old ffplay preview (with audio) is still there.
 - The main window can now be resized and maximized.
+- Dark mode. The theme button in the status bar switches between Automatic (follows the Windows app mode, the default), Dark and Light. All dialogs follow it.
+- Fixed a crash on startup when the program was not started from its own folder.
 - Targets .NET Framework 4.8.
 - Includes all updates from gitgud.io/nixx/WebMConverter up to v2.26.1.
 

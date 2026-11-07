@@ -15,6 +15,7 @@ namespace WebMConverter
         public TrimForm(TrimFilter FilterToEdit = null)
         {
             InitializeComponent();
+            Theme.Register(this);
 
             trackVideoTimeline.Maximum = Program.VideoSource.NumberOfFrames - 1;
             trackVideoTimeline.TickFrequency = trackVideoTimeline.Maximum / 60;

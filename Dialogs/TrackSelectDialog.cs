@@ -11,6 +11,7 @@ namespace WebMConverter.Dialogs
         public TrackSelectDialog(string tracktype, IEnumerable<int> tracks)
         {
             InitializeComponent();
+            Theme.Register(this);
 
             labelSelect.Text = string.Format("{0} track:", tracktype);
 

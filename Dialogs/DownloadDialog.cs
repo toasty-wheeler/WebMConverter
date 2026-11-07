@@ -27,6 +27,7 @@ namespace WebMConverter.Dialogs
         public DownloadDialog(string url)
         {
             InitializeComponent();
+            Theme.Register(this);
             pictureStatus.BackgroundImage = StatusImages.Images["Happening"];
 
             _infile = '"' + url.Replace(@"""", @"\""") + '"';

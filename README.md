@@ -6,9 +6,10 @@ A wrapper around ffmpeg and AviSynth made for converting videos to WebM without 
 > [nixxquality/WebMConverter](https://github.com/nixxquality/WebMConverter) that also includes every update published on
 > [gitgud.io/nixx/WebMConverter](https://gitgud.io/nixx/WebMConverter) (up to v2.26.1). What it adds:
 >
-> - **Live preview panel** on the right side of the window. It shows the real output of your edits (crop, trim, captions,
+> - **Live preview panel** between the Main box and the option tabs. It shows the real output of your edits (crop, trim, captions,
 >   subtitles, rate, rotate and so on, or your own Advanced script) and updates as you change them. Seek with the slider,
 >   step with the arrow keys or mouse wheel, Space plays and pauses. "Hide preview" in the status bar collapses it.
+> - **Dark mode**: the theme button in the status bar switches between Automatic (follows Windows), Dark and Light.
 > - A resizable main window.
 > - Targets .NET Framework 4.8. Build with Visual Studio 2017 or newer: restore NuGet packages, then build `WebMConverter.sln` (Release, x86).
 >

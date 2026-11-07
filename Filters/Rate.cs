@@ -16,6 +16,7 @@ namespace WebMConverter
         public RateForm()
         {
             InitializeComponent();
+            Theme.Register(this);
         }
 
         public RateForm(RateFilter filterToEdit) : this()

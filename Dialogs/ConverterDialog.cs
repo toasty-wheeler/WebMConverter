@@ -36,6 +36,7 @@ namespace WebMConverter.Dialogs
         public ConverterDialog(string input, string[] args, string output)
         {
             InitializeComponent();
+            Theme.Register(this);
 
             if (!ShareXUpload.Enabled)
             {

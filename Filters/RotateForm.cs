@@ -13,6 +13,7 @@ namespace WebMConverter
         public RotateForm(RotateFilter filterToEdit = null)
         {
             InitializeComponent();
+            Theme.Register(this);
 
             if (filterToEdit == null) return;
 

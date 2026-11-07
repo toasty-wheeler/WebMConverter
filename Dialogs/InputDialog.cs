@@ -12,6 +12,7 @@ namespace WebMConverter.Dialogs
         public InputDialog(string label, T defaultValue)
         {
             InitializeComponent();
+            Theme.Register(this);
             AddInputField(defaultValue);
 
             label1.Text = label + ':';

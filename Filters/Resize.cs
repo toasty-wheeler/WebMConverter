@@ -14,6 +14,7 @@ namespace WebMConverter
         public ResizeForm()
         {
             InitializeComponent();
+            Theme.Register(this);
         }
 
         public ResizeForm(ResizeFilter ResizeFilter) : this()

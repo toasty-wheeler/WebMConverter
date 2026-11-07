@@ -13,6 +13,7 @@ namespace WebMConverter
         public SubtitleForm()
         {
             InitializeComponent();
+            Theme.Register(this);
 
             if (Program.InputHasWeirdPixelFormat)
             {

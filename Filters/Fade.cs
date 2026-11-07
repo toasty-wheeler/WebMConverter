@@ -10,6 +10,7 @@ namespace WebMConverter
         public FadeForm()
         {
             InitializeComponent();
+            Theme.Register(this);
         }
 
         public FadeForm(FadeFilter fadeFilter) : this()

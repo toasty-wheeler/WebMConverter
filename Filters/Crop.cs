@@ -36,6 +36,7 @@ namespace WebMConverter
         public CropForm(CropFilter CropPixels = null)
         {
             InitializeComponent();
+            Theme.Register(this);
 
             InputFilter = CropPixels;
 

@@ -22,6 +22,7 @@ namespace WebMConverter
         public OverlayForm(OverlayFilter filterToEdit = null)
         {
             InitializeComponent();
+            Theme.Register(this);
 
             InputFilter = filterToEdit;
 

@@ -76,9 +76,9 @@ namespace WebMConverter.Components
             controls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             controls.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
 
-            buttonPrevious = MakeButton("◀❙", "Previous frame (Left arrow)");
-            buttonPlay = MakeButton("▶", "Play / pause (Space)");
-            buttonNext = MakeButton("❙▶", "Next frame (Right arrow)");
+            buttonPrevious = MakeGlyphButton(Glyph.Previous, "Previous frame (Left arrow)");
+            buttonPlay = MakeGlyphButton(Glyph.Play, "Play / pause (Space)");
+            buttonNext = MakeGlyphButton(Glyph.Next, "Next frame (Right arrow)");
             buttonPopout = MakeButton("ffplay", "Open the full preview with audio in ffplay");
             buttonPrevious.Click += (s, e) => Step(-1);
             buttonNext.Click += (s, e) => Step(1);
@@ -120,6 +120,61 @@ namespace WebMConverter.Components
             renderThread = new Thread(RenderLoop) { IsBackground = true, Name = "Live preview renderer" };
             renderThread.Start();
         }
+
+        enum Glyph { Previous, Play, Pause, Next }
+
+        /// <summary>A button with a drawn icon, so it looks the same in every theme and button style.</summary>
+        static GlyphButton MakeGlyphButton(Glyph glyph, string tip) => new GlyphButton
+        {
+            Glyph = glyph,
+            Tag = tip,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(1),
+            FlatStyle = FlatStyle.Standard,
+        };
+
+        /// <summary>A button with a drawn icon, so it looks the same in every theme and button style.</summary>
+        sealed class GlyphButton : Button
+        {
+            Glyph glyph;
+            public Glyph Glyph { get => glyph; set { glyph = value; Invalidate(); } }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                base.OnPaint(e);
+                var g = e.Graphics;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                int s = Math.Min(10, Math.Min(Width, Height) / 2 - 3);
+                float cx = Width / 2f, cy = Height / 2f;
+                var color = Enabled ? ForeColor : SystemColors.GrayText;
+                using (var brush = new SolidBrush(color))
+                {
+                    PointF[] Triangle(float left, bool pointRight) => pointRight
+                        ? new[] { new PointF(left, cy - s / 2f), new PointF(left + s * 0.85f, cy), new PointF(left, cy + s / 2f) }
+                        : new[] { new PointF(left + s * 0.85f, cy - s / 2f), new PointF(left, cy), new PointF(left + s * 0.85f, cy + s / 2f) };
+                    switch (glyph)
+                    {
+                        case Glyph.Play:
+                            g.FillPolygon(brush, Triangle(cx - s * 0.35f, true));
+                            break;
+                        case Glyph.Pause:
+                            g.FillRectangle(brush, cx - s * 0.45f, cy - s / 2f, s * 0.3f, s);
+                            g.FillRectangle(brush, cx + s * 0.15f, cy - s / 2f, s * 0.3f, s);
+                            break;
+                        case Glyph.Previous:
+                            g.FillRectangle(brush, cx - s * 0.6f, cy - s / 2f, 2, s);
+                            g.FillPolygon(brush, Triangle(cx - s * 0.35f, false));
+                            break;
+                        case Glyph.Next:
+                            g.FillPolygon(brush, Triangle(cx - s * 0.5f, true));
+                            g.FillRectangle(brush, cx + s * 0.45f, cy - s / 2f, 2, s);
+                            break;
+                    }
+                }
+            }
+        }
+
+        void SetPlayGlyph(bool isPlaying) => ((GlyphButton)buttonPlay).Glyph = isPlaying ? Glyph.Pause : Glyph.Play;
 
         static Button MakeButton(string text, string tip) => new Button
         {
@@ -183,7 +238,7 @@ namespace WebMConverter.Components
                 if (playing && displayedFrame >= frameCount - 1)
                     pendingFrame = 0; // restart from the beginning
             }
-            buttonPlay.Text = playing ? "❙❙" : "▶";
+            SetPlayGlyph(playing);
             wake.Set();
         }
 
@@ -229,7 +284,7 @@ namespace WebMConverter.Components
                 pendingLoad = true;
                 playing = false;
             }
-            buttonPlay.Text = "▶";
+            SetPlayGlyph(false);
             wake.Set();
             ShowMessage(message);
         }
@@ -252,7 +307,7 @@ namespace WebMConverter.Components
                 pendingFrame = frame;
                 if (stopPlayback) playing = false;
             }
-            if (stopPlayback) buttonPlay.Text = "▶";
+            if (stopPlayback) SetPlayGlyph(false);
             wake.Set();
         }
 
@@ -406,7 +461,7 @@ namespace WebMConverter.Components
         void StopPlaying()
         {
             lock (sync) playing = false;
-            PostToUI(() => buttonPlay.Text = "▶");
+            PostToUI(() => SetPlayGlyph(false));
         }
 
         bool Render(AviSynthPreviewSource source, int frame)
@@ -488,7 +543,7 @@ namespace WebMConverter.Components
         {
             message = message.Replace(@"\\?\", ""); // long-path prefix from GetCompatiblePath
             lock (sync) playing = false;
-            buttonPlay.Text = "▶";
+            SetPlayGlyph(false);
             ShowMessage(message);
             canvas.IsError = true;
         }

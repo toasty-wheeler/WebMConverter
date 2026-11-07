@@ -22,6 +22,7 @@ namespace WebMConverter
         public CaptionForm(CaptionFilter filterToEdit = null)
         {
             InitializeComponent();
+            Theme.Register(this);
 
             InputFilter = filterToEdit;
 

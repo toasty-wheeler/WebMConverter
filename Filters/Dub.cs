@@ -22,6 +22,7 @@ namespace WebMConverter
         public DubForm()
         {
             InitializeComponent();
+            Theme.Register(this);
             comboDubMode.SelectedIndex = 0;
         }
 

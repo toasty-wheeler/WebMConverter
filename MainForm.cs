@@ -120,6 +120,8 @@ namespace WebMConverter
             taskbarManager = TaskbarManager.Instance;
 
             SetupLivePreview();
+            SetupThemeButton();
+            Theme.Register(this);
         }
 
         void MainForm_Load(object sender, EventArgs e)

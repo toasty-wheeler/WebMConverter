@@ -13,6 +13,7 @@ namespace WebMConverter.Dialogs
             _changelog = changelog;
 
             InitializeComponent();
+            Theme.Register(this);
 
             label1.Text = string.Format(label1.Text, "WebM for Retards");
         }
