@@ -16,6 +16,10 @@ namespace WebMConverter.Updater
         [STAThread]
         static int Main(string[] args)
         {
+            // Bundled binaries are found relative to the working directory, which is not the exe folder when
+            // started from a terminal, a shortcut or "Open with" on a file elsewhere.
+            Environment.CurrentDirectory = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
