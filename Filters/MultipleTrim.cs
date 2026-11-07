@@ -61,11 +61,6 @@ namespace WebMConverter
             listViewTrims.EndUpdate();
         }
 
-        private void buttonMoveUp_Click(object sender, EventArgs e)
-        {
-            MoveListViewItem(listViewTrims, MoveDirection.Up);
-        }
-
         private void buttonAddTrim_Click(object sender, EventArgs e)
         {
             using (var form = new TrimForm())
@@ -75,11 +70,6 @@ namespace WebMConverter
                     listViewTrims.Items.Add(form.GeneratedFilter.ToString()).Tag = form.GeneratedFilter;
                 }
             }
-        }
-
-        private void buttonMoveDown_Click(object sender, EventArgs e)
-        {
-            MoveListViewItem(listViewTrims, MoveDirection.Down);
         }
 
         private void buttonConfirm_Click(object sender, EventArgs e)
@@ -112,27 +102,21 @@ namespace WebMConverter
             buttonMoveDown.Enabled = (listViewTrims.SelectedIndices[0] != listViewTrims.Items.Count - 1);
         }
 
-        private void listViewTrims_Leave(object sender, EventArgs e)
-        {
-            listViewTrims.Focus();
-        }
+        private void buttonMoveUp_Click(object sender, EventArgs e) => MoveListViewItem(listViewTrims, MoveDirection.Up);
+        private void buttonMoveDown_Click(object sender, EventArgs e) => MoveListViewItem(listViewTrims, MoveDirection.Down);
+        private void listViewTrims_Leave(object sender, EventArgs e) => listViewTrims.Focus();
     }
 
     public class MultipleTrimFilter
     {
-        public readonly List<TrimFilter> Trims;
+        public List<TrimFilter> Trims { get; }
 
         public MultipleTrimFilter(List<TrimFilter> trims)
         {
             Trims = trims;
         }
 
-        public override string ToString()
-        {
-            return string.Join(" + ", Trims);
-        }
-
-        internal double GetDuration()
+        public double GetDuration()
         {
             double duration = 0;
 
@@ -143,5 +127,7 @@ namespace WebMConverter
 
             return duration;
         }
+
+        public override string ToString() => string.Join(" + ", Trims);
     }
 }

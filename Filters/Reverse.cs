@@ -2,9 +2,6 @@
 {
     public class ReverseFilter
     {
-        public override string ToString()
-        {
-            return "Reverse()";
-        }
+        public override string ToString() => "Reverse()";
     }
 }

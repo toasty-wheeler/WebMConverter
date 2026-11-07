@@ -6,8 +6,7 @@ namespace WebMConverter.Dialogs
 {
     public partial class TrackSelectDialog : Form
     {
-        public int SelectedTrack
-        { get { return (int)comboBoxTracks.SelectedValue; } }
+        public int SelectedTrack => (int)comboBoxTracks.SelectedValue;
 
         public TrackSelectDialog(string tracktype, IEnumerable<int> tracks)
         {

@@ -43,15 +43,8 @@ namespace WebMConverter
             SetFile(files[0]);
         }
 
-        private void buttonBrowse_Click(object sender, EventArgs e)
-        {
-            openAudioFile.ShowDialog(this);
-        }
-
-        private void openAudioFile_FileOk(object sender, CancelEventArgs e)
-        {
-            SetFile(((OpenFileDialog) sender).FileName);
-        }
+        private void buttonBrowse_Click(object sender, EventArgs e) => openAudioFile.ShowDialog(this);
+        private void openAudioFile_FileOk(object sender, CancelEventArgs e) => SetFile(((OpenFileDialog) sender).FileName);
 
         private void SetFile(string audioFileName)
         {
@@ -121,7 +114,8 @@ namespace WebMConverter
                 };
                 _worker.DoWork += (bw, workArgs) =>
                 {
-                    var indexer = new Indexer(audioFile, Source.Lavf);
+                    var indexer = new Indexer(audioFile);
+                    indexer.SetTrackTypeIndexSettings(TrackType.Audio, true);
 
                     indexer.UpdateIndexProgress += (ind, updateArgs) =>
                     {
@@ -220,9 +214,9 @@ namespace WebMConverter
 
     public class DubFilter
     {
-        public readonly string AudioFileName;
-        public readonly string IndexFileName;
-        public readonly DubMode Mode;
+        public string AudioFileName { get; }
+        public string IndexFileName { get; }
+        public DubMode Mode { get; }
 
         public DubFilter(string audioFileName, string indexFileName, DubMode mode)
         {
@@ -233,22 +227,18 @@ namespace WebMConverter
 
         public override string ToString()
         {
-            string command;
             switch (Mode)
             {
                 case DubMode.TrimAudio:
-                    command = @"Trim(AudioDub(FFAudioSource(""{0}"",cachefile=""{1}"")), 0, last.FrameCount)";
-                    break;
+                    return $@"Trim(AudioDub(FFAudioSource(""{AudioFileName}"",cachefile=""{IndexFileName}"")), 0, last.FrameCount)";
                 case DubMode.LoopVideo:
-                    command = @"dub = FFAudioSource(""{0}"",cachefile=""{1}""){2}Loop(-1).AudioDub(dub).Trim(0,int(dub.AudioLength / dub.AudioRate * last.FrameRate))";
-                    break;
+                    return $@"dub = FFAudioSource(""{AudioFileName}"",cachefile=""{IndexFileName}""){Environment.NewLine}" + 
+                             "Loop(-1).AudioDub(dub).Trim(0,int(dub.AudioLength / dub.AudioRate * last.FrameRate))";
                 case DubMode.JustDub:
-                    command = @"AudioDub(FFAudioSource(""{0}"",cachefile=""{1}""))";
-                    break;
+                    return $@"AudioDub(FFAudioSource(""{AudioFileName}"",cachefile=""{IndexFileName}""))";
                 default:
                     throw new NotImplementedException();
             }
-            return string.Format(command, AudioFileName, IndexFileName, Environment.NewLine);
         }
     }
 

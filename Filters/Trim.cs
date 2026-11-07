@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 using WebMConverter.Dialogs;
+using static WebMConverter.Utility;
 
 namespace WebMConverter
 {
@@ -17,7 +18,7 @@ namespace WebMConverter
 
             trackVideoTimeline.Maximum = Program.VideoSource.NumberOfFrames - 1;
             trackVideoTimeline.TickFrequency = trackVideoTimeline.Maximum / 60;
-            labelTimeStamp.Text = Program.FrameToTimeStamp(trackVideoTimeline.Value);
+            labelTimeStamp.Text = FrameToTimeStamp(trackVideoTimeline.Value);
 
             trackVideoTimeline.Focus();
 
@@ -32,12 +33,12 @@ namespace WebMConverter
                 trimEnd = FilterToEdit.TrimEnd;
             }
 
-            labelTrimStart.Text = string.Format("{0} ({1})", Program.FrameToTimeStamp(trimStart), trimStart.ToString());
-            labelTrimEnd.Text = string.Format("{0} ({1})", Program.FrameToTimeStamp(trimEnd), trimEnd.ToString());
+            labelTrimStart.Text = $"{FrameToTimeStamp(trimStart)} ({trimStart})";
+            labelTrimEnd.Text = $"{FrameToTimeStamp(trimEnd)} ({trimEnd})";
 
             trackVideoTimeline.Value = trimStart;
             previewFrame.Frame = trimStart;
-            labelTimeStamp.Text = string.Format("{0} ({1})", Program.FrameToTimeStamp(trackVideoTimeline.Value), trackVideoTimeline.Value);
+            labelTimeStamp.Text = $"{FrameToTimeStamp(trackVideoTimeline.Value)} ({trackVideoTimeline.Value})";
 
             checktrims();
 
@@ -47,7 +48,7 @@ namespace WebMConverter
         private void buttonTrimStart_Click(object sender, EventArgs e)
         {
             trimStart = trackVideoTimeline.Value;
-            labelTrimStart.Text = string.Format("{0} ({1})", Program.FrameToTimeStamp(trimStart), trimStart);
+            labelTrimStart.Text = $"{FrameToTimeStamp(trimStart)} ({trimStart})";
             checktrims();
             trackVideoTimeline_Focus(sender, e);
         }
@@ -55,7 +56,7 @@ namespace WebMConverter
         private void buttonTrimEnd_Click(object sender, EventArgs e)
         {
             trimEnd = trackVideoTimeline.Value;
-            labelTrimEnd.Text = string.Format("{0} ({1})", Program.FrameToTimeStamp(trimEnd), trimEnd);
+            labelTrimEnd.Text = $"{FrameToTimeStamp(trimEnd)} ({trimEnd})";
             checktrims();
             trackVideoTimeline_Focus(sender, e);
         }
@@ -70,14 +71,13 @@ namespace WebMConverter
             buttonConfirm.Enabled = true;
 
             int trimLength = trimEnd - trimStart;
-            labelTrimDuration.Text = string.Format("{0} ({1})", Program.FrameToTimeStamp(trimLength), trimLength); // Using trimLength is actually kind of invalid, but meh.
+            labelTrimDuration.Text = $"{FrameToTimeStamp(trimLength)} ({trimLength})"; // Using trimLength is actually kind of invalid, but meh.
         }
 
         private void buttonConfirm_Click(object sender, EventArgs e)
         {
             GeneratedFilter = new TrimFilter(trimStart, trimEnd);
-
-            Close();
+            DialogResult = DialogResult.OK;
         }
 
         private void toolStripMenuGoToFrame_Click(object sender, EventArgs e)
@@ -93,11 +93,11 @@ namespace WebMConverter
 
         private void ToolStripMenuGoToTime_Click(object sender, EventArgs e)
         {
-            using (var dialog = new InputDialog<TimeSpan>("Time", Program.FrameToTimeSpan(trackVideoTimeline.Value)))
+            using (var dialog = new InputDialog<TimeSpan>("Time", FrameToTimeSpan(trackVideoTimeline.Value)))
             {
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    SetFrame(Program.TimeSpanToFrame(dialog.Value));
+                    SetFrame(TimeSpanToFrame(dialog.Value));
                 }
             }
         }
@@ -149,39 +149,33 @@ namespace WebMConverter
         private void trackVideoTimeline_ValueChanged(object sender, EventArgs e)
         {
             previewFrame.Frame = trackVideoTimeline.Value;
-            labelTimeStamp.Text = string.Format("{0} ({1})", Program.FrameToTimeStamp(trackVideoTimeline.Value), trackVideoTimeline.Value);
+            labelTimeStamp.Text = string.Format("{0} ({1})", FrameToTimeStamp(trackVideoTimeline.Value), trackVideoTimeline.Value);
         }
 
-        private void trackVideoTimeline_Focus(object sender, EventArgs e)
-        {
-            trackVideoTimeline.Focus();
-        }
+        private void trackVideoTimeline_Focus(object sender, EventArgs e) => trackVideoTimeline.Focus();
     }
 
     public class TrimFilter
     {
-        public readonly int TrimStart;
-        public readonly int TrimEnd;
+        public int TrimStart { get; }
+        public int TrimEnd { get; }
 
-        public TrimFilter(int TrimStart, int TrimEnd)
+        public TrimFilter(int trimStart, int trimEnd)
         {
-            this.TrimStart = TrimStart;
-            this.TrimEnd = TrimEnd;
+            TrimStart = trimStart;
+            TrimEnd = trimEnd;
         }
 
-        public override string ToString()
-        {
-            return string.Format("Trim({0}, {1})", TrimStart, TrimEnd);
-        }
-
-        internal double GetDuration()
+        public double GetDuration()
         {
             double firsttime, lasttime;
 
-            firsttime = Program.FrameToTimeSpan(TrimStart).TotalSeconds;
-            lasttime = Program.FrameToTimeSpan(TrimEnd).TotalSeconds;
+            firsttime = FrameToTimeSpan(TrimStart).TotalSeconds;
+            lasttime = FrameToTimeSpan(TrimEnd).TotalSeconds;
 
             return lasttime - firsttime;
         }
+
+        public override string ToString() => $"Trim({TrimStart}, {TrimEnd})";
     }
 }

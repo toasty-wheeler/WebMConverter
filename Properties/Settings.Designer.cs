@@ -74,24 +74,24 @@ namespace WebMConverter.Properties {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool SeenNotice {
-            get {
-                return ((bool)(this["SeenNotice"]));
-            }
-            set {
-                this["SeenNotice"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool AudioEnabled {
             get {
                 return ((bool)(this["AudioEnabled"]));
             }
             set {
                 this["AudioEnabled"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool SeenNotice2 {
+            get {
+                return ((bool)(this["SeenNotice2"]));
+            }
+            set {
+                this["SeenNotice2"] = value;
             }
         }
     }

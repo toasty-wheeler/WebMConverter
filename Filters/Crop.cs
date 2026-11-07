@@ -5,6 +5,7 @@ using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
 using WebMConverter.Dialogs;
+using static WebMConverter.Utility;
 
 namespace WebMConverter
 {
@@ -38,12 +39,12 @@ namespace WebMConverter
 
             InputFilter = CropPixels;
 
-            this.previewFrame.Picture.Paint += new System.Windows.Forms.PaintEventHandler(this.previewPicture_Paint);
-            this.previewFrame.Picture.MouseDown += new System.Windows.Forms.MouseEventHandler(this.previewPicture_MouseDown);
-            this.previewFrame.Picture.MouseEnter += new System.EventHandler(this.previewPicture_MouseEnter);
-            this.previewFrame.Picture.MouseLeave += new System.EventHandler(this.previewPicture_MouseLeave);
-            this.previewFrame.Picture.MouseMove += new System.Windows.Forms.MouseEventHandler(this.previewPicture_MouseMove);
-            this.previewFrame.Picture.MouseUp += new System.Windows.Forms.MouseEventHandler(this.previewPicture_MouseUp);
+            previewFrame.Picture.Paint += new PaintEventHandler(previewPicture_Paint);
+            previewFrame.Picture.MouseDown += new MouseEventHandler(previewPicture_MouseDown);
+            previewFrame.Picture.MouseEnter += new EventHandler(previewPicture_MouseEnter);
+            previewFrame.Picture.MouseLeave += new EventHandler(previewPicture_MouseLeave);
+            previewFrame.Picture.MouseMove += new MouseEventHandler(previewPicture_MouseMove);
+            previewFrame.Picture.MouseUp += new MouseEventHandler(previewPicture_MouseUp);
         }
 
         void CropForm_Load(object sender, EventArgs e)
@@ -69,10 +70,10 @@ namespace WebMConverter
                 }
 
                 cropPercent = new RectangleF(
-                    (float)InputFilter.Left / (float)width,
-                    (float)InputFilter.Top / (float)height,
-                    (float)(width - InputFilter.Left + InputFilter.Right) / (float)width,
-                    (float)(height - InputFilter.Top + InputFilter.Bottom) / (float)height
+                    (float)InputFilter.Left / width,
+                    (float)InputFilter.Top / height,
+                    (float)(width - InputFilter.Left + InputFilter.Right) / width,
+                    (float)(height - InputFilter.Top + InputFilter.Bottom) / height
                 );
 
                 previewFrame.GeneratePreview(true);
@@ -111,8 +112,7 @@ namespace WebMConverter
                 heldCorner = Corner.None;
                 held = true;
             }
-
-
+            
             previewFrame.Invalidate();
         }
 
@@ -138,7 +138,7 @@ namespace WebMConverter
         private void previewPicture_MouseMove(object sender, MouseEventArgs e)
         {
             mousePos = new Point(e.X, e.Y);
-            insideRectangle = cropPercent.Contains(e.X / (float)previewFrame.Picture.Width, e.Y / (float)previewFrame.Picture.Height);
+            insideRectangle = cropPercent.Contains((float)e.X / previewFrame.Picture.Width, (float)e.Y / previewFrame.Picture.Height);
 
             if (held)
             {
@@ -155,27 +155,27 @@ namespace WebMConverter
                 switch (heldCorner)
                 {
                     case Corner.TopLeft:
-                        newWidth = cropPercent.Width - (clampedMouseX / (float)previewFrame.Picture.Width - cropPercent.X);
-                        newHeight = cropPercent.Height - (clampedMouseY / (float)previewFrame.Picture.Height - cropPercent.Y);
-                        cropPercent.X = clampedMouseX / (float)previewFrame.Picture.Width;
-                        cropPercent.Y = clampedMouseY / (float)previewFrame.Picture.Height;
+                        newWidth = cropPercent.Width - (clampedMouseX / previewFrame.Picture.Width - cropPercent.X);
+                        newHeight = cropPercent.Height - (clampedMouseY / previewFrame.Picture.Height - cropPercent.Y);
+                        cropPercent.X = clampedMouseX / previewFrame.Picture.Width;
+                        cropPercent.Y = clampedMouseY / previewFrame.Picture.Height;
                         break;
 
                     case Corner.TopRight:
-                        newWidth = cropPercent.Width + (clampedMouseX / (float)previewFrame.Picture.Width - cropPercent.Right);
-                        newHeight = cropPercent.Height - (clampedMouseY / (float)previewFrame.Picture.Height - cropPercent.Y);
-                        cropPercent.Y = clampedMouseY / (float)previewFrame.Picture.Height;
+                        newWidth = cropPercent.Width + (clampedMouseX / previewFrame.Picture.Width - cropPercent.Right);
+                        newHeight = cropPercent.Height - (clampedMouseY / previewFrame.Picture.Height - cropPercent.Y);
+                        cropPercent.Y = clampedMouseY / previewFrame.Picture.Height;
                         break;
 
                     case Corner.BottomLeft:
-                        newWidth = cropPercent.Width - (clampedMouseX / (float)previewFrame.Picture.Width - cropPercent.X);
-                        newHeight = cropPercent.Height + (clampedMouseY / (float)previewFrame.Picture.Height - cropPercent.Bottom);
-                        cropPercent.X = clampedMouseX / (float)previewFrame.Picture.Width;
+                        newWidth = cropPercent.Width - (clampedMouseX / previewFrame.Picture.Width - cropPercent.X);
+                        newHeight = cropPercent.Height + (clampedMouseY / previewFrame.Picture.Height - cropPercent.Bottom);
+                        cropPercent.X = clampedMouseX / previewFrame.Picture.Width;
                         break;
 
                     case Corner.BottomRight:
-                        newWidth = cropPercent.Width + (clampedMouseX / (float)previewFrame.Picture.Width - cropPercent.Right);
-                        newHeight = cropPercent.Height + (clampedMouseY / (float)previewFrame.Picture.Height - cropPercent.Bottom);
+                        newWidth = cropPercent.Width + (clampedMouseX / previewFrame.Picture.Width - cropPercent.Right);
+                        newHeight = cropPercent.Height + (clampedMouseY / previewFrame.Picture.Height - cropPercent.Bottom);
                         break;
 
                     case Corner.None: //Drag entire rectangle
@@ -184,8 +184,8 @@ namespace WebMConverter
                         float actualRectH = cropPercent.Height * previewFrame.Picture.Height;
                         clampedMouseX = Math.Max(min.X - mouseOffset.X, Math.Min(max.X - mouseOffset.X - actualRectW, e.X));
                         clampedMouseY = Math.Max(min.Y - mouseOffset.Y, Math.Min(max.Y - mouseOffset.Y - actualRectH, e.Y));
-                        cropPercent.X = (clampedMouseX + mouseOffset.X) / (float)previewFrame.Picture.Width;
-                        cropPercent.Y = (clampedMouseY + mouseOffset.Y) / (float)previewFrame.Picture.Height;
+                        cropPercent.X = (clampedMouseX + mouseOffset.X) / previewFrame.Picture.Width;
+                        cropPercent.Y = (clampedMouseY + mouseOffset.Y) / previewFrame.Picture.Height;
                         break;
                 }
 
@@ -326,46 +326,98 @@ namespace WebMConverter
 
         private void timeToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using (var dialog = new InputDialog<TimeSpan>("Time", Program.FrameToTimeSpan(previewFrame.Frame)))
+            using (var dialog = new InputDialog<TimeSpan>("Time", FrameToTimeSpan(previewFrame.Frame)))
             {
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    int i = Program.TimeSpanToFrame(dialog.Value);
+                    int i = TimeSpanToFrame(dialog.Value);
                     i = Math.Max(0, Math.Min(Program.VideoSource.NumberOfFrames - 1, i)); // Make sure we don't go out of bounds.
                     previewFrame.Frame = i;
                 }
             }
         }
 
-        private void startToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            previewFrame.Frame = Filters.Trim.TrimStart;
-        }
+        private void startToolStripMenuItem_Click(object sender, EventArgs e) => previewFrame.Frame = Filters.Trim.TrimStart;
+        private void endToolStripMenuItem_Click(object sender, EventArgs e) => previewFrame.Frame = Filters.Trim.TrimEnd;
 
-        private void endToolStripMenuItem_Click(object sender, EventArgs e)
+        private const float arrowKeyIncrement = 0.001f;
+        private const float arrowKeyShiftIncrement = 0.01f;
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            previewFrame.Frame = Filters.Trim.TrimEnd;
+            switch (keyData)
+            {
+                case Keys.Up:
+                    cropPercent.Y -= arrowKeyIncrement;
+                    break;
+                case Keys.Left:
+                    cropPercent.X -= arrowKeyIncrement;
+                    break;
+                case Keys.Right:
+                    cropPercent.X += arrowKeyIncrement;
+                    break;
+                case Keys.Down:
+                    cropPercent.Y += arrowKeyIncrement;
+                    break;
+                case Keys.Shift | Keys.Up:
+                    cropPercent.Y -= arrowKeyShiftIncrement;
+                    break;
+                case Keys.Shift | Keys.Left:
+                    cropPercent.X -= arrowKeyShiftIncrement;
+                    break;
+                case Keys.Shift | Keys.Right:
+                    cropPercent.X += arrowKeyShiftIncrement;
+                    break;
+                case Keys.Shift | Keys.Down:
+                    cropPercent.Y += arrowKeyShiftIncrement;
+                    break;
+                case Keys.Alt | Keys.Up:
+                    cropPercent.Height = Math.Max(0, cropPercent.Height - arrowKeyIncrement);
+                    break;
+                case Keys.Alt | Keys.Left:
+                    cropPercent.Width = Math.Max(0, cropPercent.Width - arrowKeyIncrement);
+                    break;
+                case Keys.Alt | Keys.Right:
+                    cropPercent.Width += arrowKeyIncrement;
+                    break;
+                case Keys.Alt | Keys.Down:
+                    cropPercent.Height += arrowKeyIncrement;
+                    break;
+                case Keys.Alt | Keys.Shift | Keys.Up:
+                    cropPercent.Height = Math.Max(0, cropPercent.Height - arrowKeyShiftIncrement);
+                    break;
+                case Keys.Alt | Keys.Shift | Keys.Left:
+                    cropPercent.Width = Math.Max(0, cropPercent.Width - arrowKeyShiftIncrement);
+                    break;
+                case Keys.Alt | Keys.Shift | Keys.Right:
+                    cropPercent.Width += arrowKeyShiftIncrement;
+                    break;
+                case Keys.Alt | Keys.Shift | Keys.Down:
+                    cropPercent.Height += arrowKeyShiftIncrement;
+                    break;
+                default:
+                    return base.ProcessCmdKey(ref msg, keyData);
+            }
+
+            previewFrame.Picture.Invalidate();
+            return true;
         }
     }
 
     public class CropFilter
     {
-        public readonly int Left;
-        public readonly int Top;
-        public readonly int Right;
-        public readonly int Bottom;
+        public int Left { get; }
+        public int Top { get; }
+        public int Right { get; }
+        public int Bottom { get; }
 
-        public CropFilter(int Left, int Top, int Right, int Bottom)
+        public CropFilter(int left, int top, int right, int bottom)
         {
-            this.Left = (Left / 2) * 2; // Make it even
-            this.Top = (Top / 2) * 2;
-            this.Right = (Right / 2) * 2;
-            this.Bottom = (Bottom / 2) * 2;
+            Left = (left / 2) * 2; // Make it even
+            Top = (top / 2) * 2;
+            Right = (right / 2) * 2;
+            Bottom = (bottom / 2) * 2;
         }
 
-        public override string ToString()
-        {
-            return string.Format("Crop({0}, {1}, {2}, {3})", Left, Top, Right, Bottom);
-        }
+        public override string ToString() => $"Crop({Left}, {Top}, {Right}, {Bottom})";
     }
 }

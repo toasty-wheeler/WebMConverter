@@ -25,14 +25,15 @@ namespace WebMConverter
 
         private void RateForm_Load(object sender, EventArgs e)
         {
-            _originalDuration = new TimeSpan((long)(((MainForm) Owner).GetDuration() * (_filterToEdit != null ? (float)_filterToEdit.Multiplier / 100 : 1) * 10000000));
-            boxPreviewOriginal.Text = _originalDuration.ToString(PreviewBoxFormat);
-
             if (_filterToEdit != null)
             {
+                _originalDuration = new TimeSpan((long)(((MainForm)Owner).GetDuration() * (float)_filterToEdit.Multiplier / 100 * 10000000));
                 trackRate.Value = _filterToEdit.Multiplier;
             }
+            else
+                _originalDuration = new TimeSpan((long)(((MainForm) Owner).GetDuration() * 10000000));
 
+            boxPreviewOriginal.Text = _originalDuration.ToString(PreviewBoxFormat);
             boxPreviewScaled.Text = new TimeSpan((long)(_originalDuration.Ticks / GetValue())).ToString(PreviewBoxFormat);
         }
 
@@ -60,35 +61,18 @@ namespace WebMConverter
             boxPreviewScaled.Text = new TimeSpan((long)(_originalDuration.Ticks / outvalue)).ToString(PreviewBoxFormat);
         }
 
-        private void buttonConfirm_Click(object sender, EventArgs e)
-        {
-            GeneratedFilter = new RateFilter(trackRate.Value);
-        }
+        private void buttonConfirm_Click(object sender, EventArgs e) => GeneratedFilter = new RateFilter(trackRate.Value);
     }
 
     public class RateFilter
     {
-        public int Multiplier { get; private set; }
-
-        /// <summary>
-        /// {0} is multiplier
-        /// {1} is divisor
-        /// </summary>
-        private const string BaseCommand = "AssumeScaledFPS({0}, 100, true)";
-
-        private readonly CultureInfo _commaCultureInfo;
+        public int Multiplier { get; }
 
         public RateFilter(int multiplier)
         {
             Multiplier = multiplier;
-
-            _commaCultureInfo = (CultureInfo)Thread.CurrentThread.CurrentCulture.Clone();
-            _commaCultureInfo.NumberFormat.NumberDecimalSeparator = ",";
         }
 
-        public override string ToString()
-        {
-            return string.Format(BaseCommand, Multiplier);
-        }
+        public override string ToString() => $"AssumeScaledFPS({Multiplier}, 100, true)";
     }
 }

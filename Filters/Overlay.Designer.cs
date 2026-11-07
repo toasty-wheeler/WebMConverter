@@ -68,7 +68,7 @@
             this.endToolStripMenuItem});
             this.trimTimingToolStripMenuItem.Enabled = false;
             this.trimTimingToolStripMenuItem.Name = "trimTimingToolStripMenuItem";
-            this.trimTimingToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.trimTimingToolStripMenuItem.Size = new System.Drawing.Size(146, 22);
             this.trimTimingToolStripMenuItem.Text = "Trim timing...";
             // 
             // startToolStripMenuItem
@@ -88,14 +88,14 @@
             // frameToolStripMenuItem
             // 
             this.frameToolStripMenuItem.Name = "frameToolStripMenuItem";
-            this.frameToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.frameToolStripMenuItem.Size = new System.Drawing.Size(146, 22);
             this.frameToolStripMenuItem.Text = "Frame";
             this.frameToolStripMenuItem.Click += new System.EventHandler(this.frameToolStripMenuItem_Click);
             // 
             // timeToolStripMenuItem
             // 
             this.timeToolStripMenuItem.Name = "timeToolStripMenuItem";
-            this.timeToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.timeToolStripMenuItem.Size = new System.Drawing.Size(146, 22);
             this.timeToolStripMenuItem.Text = "Time";
             this.timeToolStripMenuItem.Click += new System.EventHandler(this.timeToolStripMenuItem_Click);
             // 
@@ -126,7 +126,6 @@
             this.previewFrame.BackColor = System.Drawing.SystemColors.ControlDark;
             this.previewFrame.Cursor = System.Windows.Forms.Cursors.SizeAll;
             this.previewFrame.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.previewFrame.Frame = 0;
             this.previewFrame.Location = new System.Drawing.Point(0, 24);
             this.previewFrame.Name = "previewFrame";
             this.previewFrame.Size = new System.Drawing.Size(744, 520);

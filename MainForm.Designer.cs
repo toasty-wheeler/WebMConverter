@@ -108,6 +108,9 @@ namespace WebMConverter
             this.buttonExportProcessing = new System.Windows.Forms.ToolStripButton();
             this.buttonPreview = new System.Windows.Forms.ToolStripButton();
             this.buttonDub = new System.Windows.Forms.ToolStripButton();
+            this.buttonRate = new System.Windows.Forms.ToolStripButton();
+            this.buttonRotate = new System.Windows.Forms.ToolStripButton();
+            this.buttonFade = new System.Windows.Forms.ToolStripButton();
             this.listViewProcessingScript = new System.Windows.Forms.ListView();
             this.imageListFilters = new System.Windows.Forms.ImageList(this.components);
             this.textBoxProcessingScript = new System.Windows.Forms.TextBox();
@@ -147,7 +150,9 @@ namespace WebMConverter
             this.labelIndexingProgress = new System.Windows.Forms.Label();
             this.progressBarIndexing = new System.Windows.Forms.ProgressBar();
             this.panelHideTheOptions = new System.Windows.Forms.Panel();
-            this.buttonRate = new System.Windows.Forms.ToolStripButton();
+            this.listViewContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.listViewContextMenuEdit = new System.Windows.Forms.ToolStripMenuItem();
+            this.listViewContextMenuDelete = new System.Windows.Forms.ToolStripMenuItem();
             tableMainForm = new System.Windows.Forms.TableLayoutPanel();
             groupMain = new System.Windows.Forms.GroupBox();
             tableMain = new System.Windows.Forms.TableLayoutPanel();
@@ -246,6 +251,7 @@ namespace WebMConverter
             statusStrip.SuspendLayout();
             this.panelContainTheProgressBar.SuspendLayout();
             this.panelHideTheOptions.SuspendLayout();
+            this.listViewContextMenu.SuspendLayout();
             this.SuspendLayout();
             // 
             // tableMainForm
@@ -280,7 +286,7 @@ namespace WebMConverter
             tableMain.ColumnCount = 4;
             tableMain.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 69F));
             tableMain.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            tableMain.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 68F));
+            tableMain.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 77F));
             tableMain.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 77F));
             tableMain.Controls.Add(labelInputFile, 0, 0);
             tableMain.Controls.Add(this.textBoxIn, 1, 0);
@@ -314,15 +320,16 @@ namespace WebMConverter
             this.textBoxIn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
             this.textBoxIn.Location = new System.Drawing.Point(72, 4);
             this.textBoxIn.Name = "textBoxIn";
-            this.textBoxIn.Size = new System.Drawing.Size(835, 20);
+            this.textBoxIn.Size = new System.Drawing.Size(826, 20);
             this.textBoxIn.TabIndex = 1;
+            this.textBoxIn.KeyUp += new System.Windows.Forms.KeyEventHandler(this.textBoxIn_KeyUp);
             // 
             // buttonBrowseIn
             // 
             this.buttonBrowseIn.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.buttonBrowseIn.Location = new System.Drawing.Point(913, 3);
+            this.buttonBrowseIn.Location = new System.Drawing.Point(904, 3);
             this.buttonBrowseIn.Name = "buttonBrowseIn";
-            this.buttonBrowseIn.Size = new System.Drawing.Size(62, 23);
+            this.buttonBrowseIn.Size = new System.Drawing.Size(71, 23);
             this.buttonBrowseIn.TabIndex = 2;
             this.buttonBrowseIn.Text = "Browse";
             this.buttonBrowseIn.UseVisualStyleBackColor = true;
@@ -344,15 +351,15 @@ namespace WebMConverter
             this.textBoxOut.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
             this.textBoxOut.Location = new System.Drawing.Point(72, 34);
             this.textBoxOut.Name = "textBoxOut";
-            this.textBoxOut.Size = new System.Drawing.Size(835, 20);
+            this.textBoxOut.Size = new System.Drawing.Size(826, 20);
             this.textBoxOut.TabIndex = 3;
             // 
             // buttonBrowseOut
             // 
             buttonBrowseOut.Dock = System.Windows.Forms.DockStyle.Fill;
-            buttonBrowseOut.Location = new System.Drawing.Point(913, 32);
+            buttonBrowseOut.Location = new System.Drawing.Point(904, 32);
             buttonBrowseOut.Name = "buttonBrowseOut";
-            buttonBrowseOut.Size = new System.Drawing.Size(62, 24);
+            buttonBrowseOut.Size = new System.Drawing.Size(71, 24);
             buttonBrowseOut.TabIndex = 4;
             buttonBrowseOut.Text = "Browse";
             buttonBrowseOut.UseVisualStyleBackColor = true;
@@ -423,7 +430,9 @@ namespace WebMConverter
             this.buttonExportProcessing,
             this.buttonPreview,
             this.buttonDub,
-            this.buttonRate});
+            this.buttonRate,
+            this.buttonRotate,
+            this.buttonFade});
             toolStripProcessing.Location = new System.Drawing.Point(0, 0);
             toolStripProcessing.Name = "toolStripProcessing";
             toolStripProcessing.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
@@ -450,7 +459,7 @@ namespace WebMConverter
             // 
             this.buttonMultipleTrim.AccessibleDescription = "Select many clips from your video, and sort them on a timeline.";
             this.buttonMultipleTrim.Name = "buttonMultipleTrim";
-            this.buttonMultipleTrim.Size = new System.Drawing.Size(152, 22);
+            this.buttonMultipleTrim.Size = new System.Drawing.Size(146, 22);
             this.buttonMultipleTrim.Text = "Multiple Trim";
             this.buttonMultipleTrim.Click += new System.EventHandler(this.buttonMultipleTrim_Click);
             this.buttonMultipleTrim.MouseEnter += new System.EventHandler(this.ToolStripItemTooltip);
@@ -578,6 +587,42 @@ namespace WebMConverter
             this.buttonDub.MouseEnter += new System.EventHandler(this.ToolStripItemTooltip);
             this.buttonDub.MouseLeave += new System.EventHandler(this.clearToolTip);
             // 
+            // buttonRate
+            // 
+            this.buttonRate.AccessibleDescription = "Speed up or slow down your video.";
+            this.buttonRate.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.buttonRate.Enabled = false;
+            this.buttonRate.Name = "buttonRate";
+            this.buttonRate.Size = new System.Drawing.Size(78, 22);
+            this.buttonRate.Text = "Change Rate";
+            this.buttonRate.Click += new System.EventHandler(this.buttonRate_Click);
+            this.buttonRate.MouseEnter += new System.EventHandler(this.ToolStripItemTooltip);
+            this.buttonRate.MouseLeave += new System.EventHandler(this.clearToolTip);
+            // 
+            // buttonRotate
+            // 
+            this.buttonRotate.AccessibleDescription = "Rotate or flip your video.";
+            this.buttonRotate.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.buttonRotate.Enabled = false;
+            this.buttonRotate.Name = "buttonRotate";
+            this.buttonRotate.Size = new System.Drawing.Size(45, 22);
+            this.buttonRotate.Text = "Rotate";
+            this.buttonRotate.Click += new System.EventHandler(this.buttonRotate_Click);
+            this.buttonRotate.MouseEnter += new System.EventHandler(this.ToolStripItemTooltip);
+            this.buttonRotate.MouseLeave += new System.EventHandler(this.clearToolTip);
+            // 
+            // buttonFade
+            // 
+            this.buttonFade.AccessibleDescription = "Add fading effects to the start and/or end to your video.";
+            this.buttonFade.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.buttonFade.Enabled = false;
+            this.buttonFade.Name = "buttonFade";
+            this.buttonFade.Size = new System.Drawing.Size(36, 22);
+            this.buttonFade.Text = "Fade";
+            this.buttonFade.Click += new System.EventHandler(this.buttonFade_Click);
+            this.buttonFade.MouseEnter += new System.EventHandler(this.ToolStripItemTooltip);
+            this.buttonFade.MouseLeave += new System.EventHandler(this.clearToolTip);
+            // 
             // panelProcessingInput
             // 
             panelProcessingInput.Controls.Add(this.listViewProcessingScript);
@@ -602,6 +647,7 @@ namespace WebMConverter
             this.listViewProcessingScript.UseCompatibleStateImageBehavior = false;
             this.listViewProcessingScript.ItemActivate += new System.EventHandler(this.listViewProcessingScript_ItemActivate);
             this.listViewProcessingScript.KeyUp += new System.Windows.Forms.KeyEventHandler(this.listViewProcessingScript_KeyUp);
+            this.listViewProcessingScript.MouseClick += new System.Windows.Forms.MouseEventHandler(this.listViewProcessingScript_MouseClick);
             this.listViewProcessingScript.MouseEnter += new System.EventHandler(this.ControlTooltip);
             this.listViewProcessingScript.MouseLeave += new System.EventHandler(this.clearToolTip);
             // 
@@ -618,6 +664,8 @@ namespace WebMConverter
             this.imageListFilters.Images.SetKeyName(6, "Caption");
             this.imageListFilters.Images.SetKeyName(7, "Dub");
             this.imageListFilters.Images.SetKeyName(8, "Rate");
+            this.imageListFilters.Images.SetKeyName(9, "Fade");
+            this.imageListFilters.Images.SetKeyName(10, "Rotate");
             // 
             // textBoxProcessingScript
             // 
@@ -970,7 +1018,7 @@ namespace WebMConverter
             labelVideoBitrateUnit.Name = "labelVideoBitrateUnit";
             labelVideoBitrateUnit.Size = new System.Drawing.Size(30, 28);
             labelVideoBitrateUnit.TabIndex = 0;
-            labelVideoBitrateUnit.Text = "Kb/s";
+            labelVideoBitrateUnit.Text = "kb/s";
             labelVideoBitrateUnit.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // labelVideoBitrateHint
@@ -1035,7 +1083,7 @@ namespace WebMConverter
             this.numericCrf.TabIndex = 1;
             this.numericCrf.TabStop = false;
             this.numericCrf.Value = new decimal(new int[] {
-            10,
+            30,
             0,
             0,
             0});
@@ -1079,7 +1127,7 @@ namespace WebMConverter
             this.numericCrfTolerance.TabIndex = 2;
             this.numericCrfTolerance.TabStop = false;
             this.numericCrfTolerance.Value = new decimal(new int[] {
-            20,
+            2,
             0,
             0,
             0});
@@ -1262,7 +1310,7 @@ namespace WebMConverter
             labelAudioBitrateUnit.Name = "labelAudioBitrateUnit";
             labelAudioBitrateUnit.Size = new System.Drawing.Size(30, 28);
             labelAudioBitrateUnit.TabIndex = 0;
-            labelAudioBitrateUnit.Text = "Kb/s";
+            labelAudioBitrateUnit.Text = "kb/s";
             labelAudioBitrateUnit.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // labelAudioBitrateHint
@@ -1809,7 +1857,6 @@ namespace WebMConverter
             this.progressBarIndexing.Size = new System.Drawing.Size(457, 23);
             this.progressBarIndexing.Style = System.Windows.Forms.ProgressBarStyle.Marquee;
             this.progressBarIndexing.TabIndex = 0;
-            this.progressBarIndexing.Value = 30;
             // 
             // panelHideTheOptions
             // 
@@ -1820,17 +1867,27 @@ namespace WebMConverter
             this.panelHideTheOptions.Size = new System.Drawing.Size(1067, 356);
             this.panelHideTheOptions.TabIndex = 3;
             // 
-            // buttonRate
+            // listViewContextMenu
             // 
-            this.buttonRate.AccessibleDescription = "Speed up or slow down your video.";
-            this.buttonRate.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
-            this.buttonRate.Enabled = false;
-            this.buttonRate.Name = "buttonRate";
-            this.buttonRate.Size = new System.Drawing.Size(78, 22);
-            this.buttonRate.Text = "Change Rate";
-            this.buttonRate.Click += new System.EventHandler(this.buttonRate_Click);
-            this.buttonRate.MouseEnter += new System.EventHandler(this.ToolStripItemTooltip);
-            this.buttonRate.MouseLeave += new System.EventHandler(this.clearToolTip);
+            this.listViewContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.listViewContextMenuEdit,
+            this.listViewContextMenuDelete});
+            this.listViewContextMenu.Name = "listViewContextMenu";
+            this.listViewContextMenu.Size = new System.Drawing.Size(108, 48);
+            // 
+            // listViewContextMenuEdit
+            // 
+            this.listViewContextMenuEdit.Name = "listViewContextMenuEdit";
+            this.listViewContextMenuEdit.Size = new System.Drawing.Size(107, 22);
+            this.listViewContextMenuEdit.Text = "Edit...";
+            this.listViewContextMenuEdit.Click += new System.EventHandler(this.listViewContextMenuEdit_Click);
+            // 
+            // listViewContextMenuDelete
+            // 
+            this.listViewContextMenuDelete.Name = "listViewContextMenuDelete";
+            this.listViewContextMenuDelete.Size = new System.Drawing.Size(107, 22);
+            this.listViewContextMenuDelete.Text = "Delete";
+            this.listViewContextMenuDelete.Click += new System.EventHandler(this.listViewContextMenuDelete_Click);
             // 
             // MainForm
             // 
@@ -1848,7 +1905,7 @@ namespace WebMConverter
             this.MinimumSize = new System.Drawing.Size(975, 270);
             this.Name = "MainForm";
             this.Padding = new System.Windows.Forms.Padding(3, 3, 3, 0);
-            this.Text = "WebM for Gits";
+            this.Text = "WebM for Retards";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainForm_FormClosing);
             this.Load += new System.EventHandler(this.MainForm_Load);
             this.Shown += new System.EventHandler(this.MainForm_Shown);
@@ -1907,6 +1964,7 @@ namespace WebMConverter
             this.panelContainTheProgressBar.PerformLayout();
             this.panelHideTheOptions.ResumeLayout(false);
             this.panelHideTheOptions.PerformLayout();
+            this.listViewContextMenu.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -1970,6 +2028,10 @@ namespace WebMConverter
         private System.Windows.Forms.ToolStripButton buttonDub;
         private System.Windows.Forms.Button buttonAudioEnabledDefault;
         private System.Windows.Forms.ToolStripButton buttonRate;
+        private System.Windows.Forms.ToolStripButton buttonRotate;
+        private System.Windows.Forms.ContextMenuStrip listViewContextMenu;
+        private System.Windows.Forms.ToolStripMenuItem listViewContextMenuEdit;
+        private System.Windows.Forms.ToolStripMenuItem listViewContextMenuDelete;
+        private System.Windows.Forms.ToolStripButton buttonFade;
     }
 }
-

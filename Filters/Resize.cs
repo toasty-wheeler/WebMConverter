@@ -68,9 +68,7 @@ namespace WebMConverter
                     float i = float.Parse(textWidthOut.Text, CultureInfo.InvariantCulture);
 
                     textHeightOut.TextChanged -= textHeightOut_TextChanged;
-
                     textHeightOut.Text = ((int)(inheight / inwidth * i)).ToString();
-
                     textHeightOut.TextChanged += textHeightOut_TextChanged;
                 }
             }
@@ -95,9 +93,7 @@ namespace WebMConverter
                     float i = float.Parse(textHeightOut.Text, CultureInfo.InvariantCulture);
 
                     textWidthOut.TextChanged -= textWidthOut_TextChanged;
-
                     textWidthOut.Text = ((int)(inwidth / inheight * i)).ToString();
-
                     textWidthOut.TextChanged += textWidthOut_TextChanged;
                 }
             }
@@ -140,18 +136,15 @@ namespace WebMConverter
 
     public class ResizeFilter
     {
-        public readonly int TargetWidth;
-        public readonly int TargetHeight;
+        public int TargetWidth { get; } 
+        public int TargetHeight { get; }
 
-        public ResizeFilter(int TargetWidth, int TargetHeight)
+        public ResizeFilter(int targetWidth, int targetHeight)
         {
-            this.TargetWidth = TargetWidth;
-            this.TargetHeight = TargetHeight;
+            TargetWidth = (targetWidth / 2) * 2; // make it even
+            TargetHeight = (targetHeight / 2) * 2;
         }
 
-        public override string ToString()
-        {
-            return string.Format("LanczosResize({0}, {1})", (TargetWidth / 2) * 2, (TargetHeight / 2) * 2);
-        }
+        public override string ToString() => $"LanczosResize({TargetWidth}, {TargetHeight})";
     }
 }

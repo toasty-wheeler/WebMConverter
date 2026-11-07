@@ -2,9 +2,6 @@
 {
     public class DeinterlaceFilter
     {
-        public override string ToString()
-        {
-            return "tdeint()";
-        }
+        public override string ToString() => "tdeint()";
     }
 }

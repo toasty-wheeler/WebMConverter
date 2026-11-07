@@ -10,21 +10,18 @@ namespace WebMConverter
         public string FFplayPath = Path.Combine(Environment.CurrentDirectory, "Binaries", "Win32", "ffplay.exe");
 
         StringBuilder errorLog;
-        public string ErrorLog
-        {
-            get { return errorLog.ToString().Trim(); }
-        }
+        public string ErrorLog => errorLog.ToString().Trim();
 
         public FFplay(string argument)
         {
-            this.StartInfo.FileName = FFplayPath;
-            this.StartInfo.Arguments = argument;
-            this.StartInfo.RedirectStandardInput = true;
-            this.StartInfo.RedirectStandardOutput = true;
-            this.StartInfo.RedirectStandardError = true;
-            this.StartInfo.UseShellExecute = false; //Required to redirect IO streams
-            this.StartInfo.CreateNoWindow = true; //Hide console
-            this.EnableRaisingEvents = true;
+            StartInfo.FileName = FFplayPath;
+            StartInfo.Arguments = argument;
+            StartInfo.RedirectStandardInput = true;
+            StartInfo.RedirectStandardOutput = true;
+            StartInfo.RedirectStandardError = true;
+            StartInfo.UseShellExecute = false; //Required to redirect IO streams
+            StartInfo.CreateNoWindow = true; //Hide console
+            EnableRaisingEvents = true;
 
             errorLog = new StringBuilder();
             ErrorDataReceived += (sender, args) => errorLog.AppendLine(args.Data);
@@ -38,8 +35,8 @@ namespace WebMConverter
         new public void Start()
         {
             base.Start();
-            this.BeginErrorReadLine();
-            this.BeginOutputReadLine();
+            BeginErrorReadLine();
+            BeginOutputReadLine();
         }
     }
 }

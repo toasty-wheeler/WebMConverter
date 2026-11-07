@@ -191,6 +191,7 @@
             // SubtitleForm
             // 
             this.AcceptButton = this.buttonConfirm;
+            this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.buttonCancel;
@@ -202,6 +203,8 @@
             this.ShowInTaskbar = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Subtitles";
+            this.DragDrop += new System.Windows.Forms.DragEventHandler(this.SubtitleForm_DragDrop);
+            this.DragEnter += new System.Windows.Forms.DragEventHandler(this.SubtitleForm_DragEnter);
             this.tableLayoutPanelMain.ResumeLayout(false);
             this.tableLayoutPanelMain.PerformLayout();
             this.flowLayoutPanel1.ResumeLayout(false);

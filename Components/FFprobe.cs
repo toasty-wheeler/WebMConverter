@@ -31,27 +31,27 @@ namespace WebMConverter
                     dataToProbeAsString += " -show_";
                     dataToProbeAsString += Type;
                 }
-                this.StartInfo.Arguments = string.Format(templateArguments, format, inputFile, dataToProbeAsString);
+                StartInfo.Arguments = string.Format(templateArguments, format, inputFile, dataToProbeAsString);
             }
             else
             {
-                this.StartInfo.Arguments = string.Format(templateArguments, format, inputFile, " " + argument);
+                StartInfo.Arguments = string.Format(templateArguments, format, inputFile, " " + argument);
             }
 
-            this.StartInfo.FileName = FFmpegPath;
-            this.StartInfo.RedirectStandardInput = true;
-            this.StartInfo.RedirectStandardOutput = true;
-            this.StartInfo.RedirectStandardError = true;
-            this.StartInfo.UseShellExecute = false; //Required to redirect IO streams
-            this.StartInfo.CreateNoWindow = true; //Hide console
-            this.EnableRaisingEvents = true;
+            StartInfo.FileName = FFmpegPath;
+            StartInfo.RedirectStandardInput = true;
+            StartInfo.RedirectStandardOutput = true;
+            StartInfo.RedirectStandardError = true;
+            StartInfo.UseShellExecute = false; //Required to redirect IO streams
+            StartInfo.CreateNoWindow = true; //Hide console
+            EnableRaisingEvents = true;
         }
 
         new public void Start()
         {
             base.Start();
-            this.BeginErrorReadLine();
-            this.BeginOutputReadLine();
+            BeginErrorReadLine();
+            BeginOutputReadLine();
         }
 
         public string Probe()

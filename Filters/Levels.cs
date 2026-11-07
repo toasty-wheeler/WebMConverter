@@ -4,11 +4,11 @@ namespace WebMConverter
 {
     public class LevelsFilter
     {
-        public readonly LevelsConversion Type;
+        public LevelsConversion Type { get; }
 
-        public LevelsFilter(LevelsConversion Type)
+        public LevelsFilter(LevelsConversion type)
         {
-            this.Type = Type;
+            Type = type;
         }
 
         public override string ToString()

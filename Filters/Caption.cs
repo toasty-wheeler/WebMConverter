@@ -4,6 +4,7 @@ using System.Drawing.Drawing2D;
 using System.IO;
 using System.Windows.Forms;
 using WebMConverter.Dialogs;
+using static WebMConverter.Utility;
 
 namespace WebMConverter
 {
@@ -24,9 +25,9 @@ namespace WebMConverter
 
             InputFilter = filterToEdit;
 
-            previewFrame.Picture.Paint += new System.Windows.Forms.PaintEventHandler(this.previewPicture_Paint);
-            previewFrame.Picture.MouseDown += new System.Windows.Forms.MouseEventHandler(this.previewPicture_MouseDown);
-            previewFrame.Picture.MouseMove += new System.Windows.Forms.MouseEventHandler(this.previewPicture_MouseMove);
+            previewFrame.Picture.Paint += new PaintEventHandler(this.previewPicture_Paint);
+            previewFrame.Picture.MouseDown += new MouseEventHandler(this.previewPicture_MouseDown);
+            previewFrame.Picture.MouseMove += new MouseEventHandler(this.previewPicture_MouseMove);
         }
 
         void CaptionForm_Load(object sender, EventArgs e)
@@ -74,10 +75,7 @@ namespace WebMConverter
             return new Point(basex, basey);
         }
 
-        float getPictureScale(PictureBox pictureBox)
-        {
-            return (float)pictureBox.ClientSize.Width / (float)videoResolution.Width;
-        }
+        float getPictureScale(PictureBox pictureBox) => (float)pictureBox.ClientSize.Width / videoResolution.Width;
 
         void previewPicture_Paint(object sender, PaintEventArgs e)
         {
@@ -109,7 +107,7 @@ namespace WebMConverter
 
         void previewPicture_MouseMove(object sender, MouseEventArgs e)
         {
-            if (e.Button == System.Windows.Forms.MouseButtons.None)
+            if (e.Button == MouseButtons.None)
                 return;
 
             var scale = getPictureScale(previewFrame.Picture);
@@ -146,19 +144,11 @@ namespace WebMConverter
         private void buttonConfirm_Click(object sender, EventArgs e)
         {
             GeneratedFilter = new CaptionFilter(point, boxText.Text, fontDialog1.Font, colorDialogTextColor.Color, colorDialogBorderColor.Color, (int)numericBorderThickness.Value);
-
             DialogResult = DialogResult.OK;
         }
 
-        private void startToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            previewFrame.Frame = Filters.Trim.TrimStart;
-        }
-
-        private void endToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            previewFrame.Frame = Filters.Trim.TrimEnd;
-        }
+        private void startToolStripMenuItem_Click(object sender, EventArgs e) => previewFrame.Frame = Filters.Trim.TrimStart;
+        private void endToolStripMenuItem_Click(object sender, EventArgs e) => previewFrame.Frame = Filters.Trim.TrimEnd;
 
         private void frameToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -173,26 +163,64 @@ namespace WebMConverter
 
         private void timeToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using (var dialog = new InputDialog<TimeSpan>("Time", Program.FrameToTimeSpan(previewFrame.Frame)))
+            using (var dialog = new InputDialog<TimeSpan>("Time", FrameToTimeSpan(previewFrame.Frame)))
             {
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    int i = Program.TimeSpanToFrame(dialog.Value);
+                    int i = TimeSpanToFrame(dialog.Value);
                     i = Math.Max(0, Math.Min(Program.VideoSource.NumberOfFrames - 1, i)); // Make sure we don't go out of bounds.
                     previewFrame.Frame = i;
                 }
             }
         }
+
+        private const int arrowKeyIncrement = 1;
+        private const int arrowKeyShiftIncrement = 10;
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            switch (keyData)
+            {
+                case Keys.Up:
+                    point.Y -= arrowKeyIncrement;
+                    break;
+                case Keys.Left:
+                    point.X -= arrowKeyIncrement;
+                    break;
+                case Keys.Right:
+                    point.X += arrowKeyIncrement;
+                    break;
+                case Keys.Down:
+                    point.Y += arrowKeyIncrement;
+                    break;
+                case Keys.Shift | Keys.Up:
+                    point.Y -= arrowKeyShiftIncrement;
+                    break;
+                case Keys.Shift | Keys.Left:
+                    point.X -= arrowKeyShiftIncrement;
+                    break;
+                case Keys.Shift | Keys.Right:
+                    point.X += arrowKeyShiftIncrement;
+                    break;
+                case Keys.Shift | Keys.Down:
+                    point.Y += arrowKeyShiftIncrement;
+                    break;
+                default:
+                    return base.ProcessCmdKey(ref msg, keyData);
+            }
+
+            previewFrame.Picture.Invalidate();
+            return true;
+        }
     }
 
     public class CaptionFilter
     {
-        public readonly Point Placement;
-        public readonly string Text;
-        public readonly Font Style;
-        public readonly Color TextColor;
-        public readonly Color BorderColor;
-        public readonly int BorderThickness;
+        public Point Placement { get; }
+        public string Text { get; }
+        public Font Style { get; }
+        public Color TextColor { get; }
+        public Color BorderColor { get; }
+        public int BorderThickness { get; }
 
         string renderedCaptionFilename;
 
@@ -225,9 +253,6 @@ namespace WebMConverter
             }
         }
 
-        public override string ToString()
-        {
-            return string.Format("Overlay(ImageSource(\"{0}\"), mask=ImageSource(\"{0}\",pixel_type=\"RGB32\").ShowAlpha(pixel_type=\"RGB32\"))", renderedCaptionFilename);
-        }
+        public override string ToString() => $"Overlay(ImageSource(\"{renderedCaptionFilename}\"), mask=ImageSource(\"{renderedCaptionFilename}\",pixel_type=\"RGB32\").ShowAlpha(pixel_type=\"RGB32\"))";
     }
 }

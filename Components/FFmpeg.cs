@@ -21,27 +21,23 @@ namespace WebMConverter
 
             FFmpegPath = Path.Combine(Environment.CurrentDirectory, "Binaries", folder, "ffmpeg.exe");
 
-            this.StartInfo.FileName = FFmpegPath;
-            this.StartInfo.Arguments = "-hide_banner " + argument;
-            this.StartInfo.RedirectStandardInput = true;
-            this.StartInfo.RedirectStandardOutput = true;
-            this.StartInfo.RedirectStandardError = true;
-            this.StartInfo.UseShellExecute = false; //Required to redirect IO streams
-            this.StartInfo.CreateNoWindow = true; //Hide console
-            this.EnableRaisingEvents = true; 
+            StartInfo.FileName = FFmpegPath;
+            StartInfo.Arguments = "-hide_banner " + argument;
+            StartInfo.RedirectStandardInput = true;
+            StartInfo.RedirectStandardOutput = true;
+            StartInfo.RedirectStandardError = true;
+            StartInfo.UseShellExecute = false; //Required to redirect IO streams
+            StartInfo.CreateNoWindow = true; //Hide console
+            EnableRaisingEvents = true; 
         }
 
-        new public void Start()
-        {
-            Start(true);
-        }
-
-        public void Start(bool OutputReadLine)
+        new public void Start() => Start(true);
+        public void Start(bool outputReadLine)
         {
             base.Start();
-            this.BeginErrorReadLine();
-            if (OutputReadLine)
-                this.BeginOutputReadLine();
+            BeginErrorReadLine();
+            if (outputReadLine)
+                BeginOutputReadLine();
         }
     }
 }

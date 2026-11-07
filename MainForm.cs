@@ -8,14 +8,16 @@ using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml;
 using System.Xml.XPath;
+using Microsoft.WindowsAPICodePack.Taskbar;
 using StopWatch = System.Timers.Timer;
 
-using GitHubUpdate;
 using WebMConverter.Components;
 using WebMConverter.Dialogs;
+using static WebMConverter.Utility;
 
 namespace WebMConverter
 {
@@ -41,7 +43,7 @@ namespace WebMConverter
         /// {1} is amount of threads to use
         /// {2} is amount of slices to split the frame into
         /// {3} is ' -metadata title="TITLE"' when specifying a title, otherwise blank
-        /// {4} is ' -quality best -lag-in-frames 16 -auto-alt-ref 1' when using HQ mode, otherwise blank
+        /// {4} is ' -lag-in-frames 16 -auto-alt-ref 1' when using HQ mode, otherwise blank
         /// {5} is 'libvpx(-vp9)' changing depending on NGOV mode
         /// {6} is ' -ac 2 -c:a libopus/libvorbis' if audio is enabled, changing depending on NGOV mode
         /// {7} is ' -r XX' if frame rate is modified, otherwise blank
@@ -55,18 +57,18 @@ namespace WebMConverter
         /// {2} is bufsize
         /// {3} is rc_init_occupancy
         /// </summary>
-        private const string ConstantVideoArguments = " -minrate:v {0}K -b:v {0}K -maxrate:v {0}K -bufsize {2}K -rc_init_occupancy {3}K -qcomp 1{1}";
+        private const string ConstantVideoArguments = " -minrate:v {0}k -b:v {0}k -maxrate:v {0}k -bufsize {2}k -rc_init_occupancy {3}k -qcomp 0{1}";
         /// <summary>
         /// {0} is audio bitrate
         /// </summary>
-        private const string ConstantAudioArguments = " -b:a {0}K";
+        private const string ConstantAudioArguments = " -b:a {0}k";
 
         /// <summary>
         /// {0} is qmin
         /// {1} is crf
         /// {2} is qmax
         /// </summary>
-        private const string VariableVideoArguments = " -qmin {0} -crf {1} -qmax {2} -qcomp 0";
+        private const string VariableVideoArguments = " -qmin {0} -crf {1} -qmax {2} -qcomp 1 -b:v 0";
         /// <summary>
         /// {0} is audio quality scale
         /// </summary>
@@ -98,6 +100,8 @@ namespace WebMConverter
         public int SarWidth;
         public int SarHeight;
 
+        private TaskbarManager taskbarManager;
+
         #region MainForm
 
         public MainForm()
@@ -112,6 +116,8 @@ namespace WebMConverter
                 boxVariable.Checked = true;
             }
             boxAudio.Checked = Properties.Settings.Default.AudioEnabled;
+
+            taskbarManager = TaskbarManager.Instance;
         }
 
         void MainForm_Load(object sender, EventArgs e)
@@ -130,6 +136,75 @@ namespace WebMConverter
         void HandleDragDrop(object sender, DragEventArgs e)
         {
             var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+
+            if (inputFile != null) // we have a file loaded already, so this might be a subtitle or something
+            {
+                switch (Path.GetExtension(files[0]))
+                {
+                    case ".srt":
+                    case ".ass":
+                        var filter = new SubtitleFilter(files[0], SubtitleType.TextSub);
+
+                        if (boxAdvancedScripting.Checked)
+                        {
+                            textBoxProcessingScript.AppendText(Environment.NewLine + filter);
+                        }
+                        else
+                        {
+                            Filters.Subtitle = filter;
+                            listViewProcessingScript.Items.Cast<ListViewItem>().Where(x => x.Text == "Subtitle").ToList().ForEach(listViewProcessingScript.Items.Remove);
+                            listViewProcessingScript.Items.Add("Subtitle", "subtitles");
+                            buttonSubtitle.Enabled = false;
+                        }
+                        return;
+                    case ".png":
+                    case ".jpeg":
+                    case ".jpg":
+                        using (var form = new OverlayForm(new OverlayFilter(new Point(0, 0), files[0])))
+                        {
+                            if (form.ShowDialog(this) != DialogResult.OK) return;
+
+                            if (boxAdvancedScripting.Checked)
+                            {
+                                textBoxProcessingScript.AppendText(Environment.NewLine + form.GeneratedFilter);
+                            }
+                            else
+                            {
+                                Filters.Overlay = form.GeneratedFilter;
+                                listViewProcessingScript.Items.Cast<ListViewItem>().Where(x => x.Text == "Overlay").ToList().ForEach(listViewProcessingScript.Items.Remove);
+                                listViewProcessingScript.Items.Add("Overlay", "overlay");
+                                buttonOverlay.Enabled = false;
+                            }
+                        }
+                        return;
+                    case ".wav":
+                    case ".mp3":
+                    case ".ogg":
+                        using (var form = new DubForm(new DubFilter(files[0], null, DubMode.TrimAudio)))
+                        {
+                            if (form.ShowDialog(this) != DialogResult.OK) return;
+
+                            if (boxAdvancedScripting.Checked)
+                            {
+                                textBoxProcessingScript.AppendText(Environment.NewLine + form.GeneratedFilter);
+                            }
+                            else
+                            {
+                                Filters.Dub = form.GeneratedFilter;
+                                listViewProcessingScript.Items.Cast<ListViewItem>().Where(x => x.Text == "Dub").ToList().ForEach(listViewProcessingScript.Items.Remove);
+                                listViewProcessingScript.Items.Add("Dub", "dub");
+
+                                if (Filters.Dub.Mode != DubMode.TrimAudio) // the video duration may have changed
+                                    UpdateArguments(sender, e);
+
+                                buttonDub.Enabled = false;
+                            }
+                            boxAudio.Checked = boxAudio.Enabled = true;
+                        }
+                        return;
+                }
+            }
+
             SetFile(files[0]);
         }
 
@@ -147,9 +222,7 @@ namespace WebMConverter
 
         void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (inputFile != null)
-                inputFile.Close();
-
+            inputFile?.Close();
             UnloadFonts();
 
             foreach (var temporaryFile in _temporaryFilesList)
@@ -178,21 +251,21 @@ namespace WebMConverter
                 var indexingProgressLines = boxIndexingProgress.Text.Split('\n');
                 if (indexingProgressLines.Length > _boxIndexingProgressMaxLines)
                 {
-                    boxIndexingProgress.Text = String.Join(Environment.NewLine, indexingProgressLines.Skip(1));
+                    boxIndexingProgress.Text = string.Join(Environment.NewLine, indexingProgressLines.Skip(1));
                 }
             });
         }
 
         async void CheckUpdate()
         {
-            if (!Properties.Settings.Default.SeenNotice)
+            if (!Properties.Settings.Default.SeenNotice2)
             {
                 try
                 {
                     using (var noticeChecker = new WebClient())
                     {
                         const string caption = "Notice";
-                        var result = await noticeChecker.DownloadStringTaskAsync(@"https://raw.githubusercontent.com/nixxquality/WebMConverter/master/NOTICE");
+                        var result = await noticeChecker.DownloadStringTaskAsync(@"https://nixx.is-fantabulo.us/WebM for Retards/NOTICE");
                         var urlAndMessage = result.Split(new[] { '\n' }, 2);
                         switch (MessageBox.Show(urlAndMessage[1], caption, MessageBoxButtons.YesNo, MessageBoxIcon.Question))
                         {
@@ -203,7 +276,7 @@ namespace WebMConverter
                                 Application.Exit();
                                 break;
                             case DialogResult.No:
-                                Properties.Settings.Default.SeenNotice = true;
+                                Properties.Settings.Default.SeenNotice2 = true;
                                 Properties.Settings.Default.Save();
                                 break;
                         }
@@ -222,39 +295,46 @@ namespace WebMConverter
                 }
             }
 
-            try
+            var checker = new Updater();
+
+            await Task.Run(() =>
             {
-                var checker = new UpdateChecker("nixxquality", "WebMConverter");
+                var checkerResult = checker.Check(Application.ProductVersion);
 
-                var update = await checker.CheckUpdate();
+                var success = checkerResult.Item1;
+                var updateAvailable = checkerResult.Item2;
+                var newVersionOrMessage = checkerResult.Item3;
+                var changelog = checkerResult.Item4;
 
-                if (update == UpdateType.None)
+                if (success == false)
+                {
+                    this.InvokeIfRequired(() =>
+                    {
+                        showToolTip("Update checking failed! " + newVersionOrMessage, 2000);
+                    });
+                    return;
+                }
+
+                if (updateAvailable == false)
                 {
                     this.InvokeIfRequired(() =>
                     {
                         showToolTip("Up to date!", 1000);
                     });
+                    return;
                 }
-                else
-                {
-                    this.InvokeIfRequired(() =>
-                    {
-                        var result = new UpdateNotifyDialog(checker).ShowDialog(this);
-                        if (result == DialogResult.Yes)
-                        {
-                            checker.DownloadAsset("Converter.zip");
-                            Application.Exit();
-                        }
-                    });
-                }
-            }
-            catch (Exception e)
-            {
+
                 this.InvokeIfRequired(() =>
                 {
-                    showToolTip("Update checking failed! " + e.Message, 2000);
+                    var result = new UpdateNotifyDialog(newVersionOrMessage, changelog).ShowDialog(this);
+                    if (result == DialogResult.Yes)
+                    {
+                        System.Diagnostics.Process.Start(checker.UpdaterPath, @"update");
+                        Application.Exit();
+                    }
                 });
-            }
+            });
+
         }
 
         [System.Diagnostics.DebuggerStepThrough]
@@ -318,21 +398,83 @@ namespace WebMConverter
 
         #region groupMain
 
-        void buttonBrowseIn_Click(object sender, EventArgs e)
+        void textBoxIn_KeyUp(object sender, KeyEventArgs e)
         {
-            using (var dialog = new OpenFileDialog())
+            if (textBoxIn.Text.StartsWith("http"))
             {
-                dialog.CheckFileExists = true;
-                dialog.CheckPathExists = true;
-                dialog.ValidateNames = true;
-                dialog.InitialDirectory = Properties.Settings.Default.RememberedFolderIn;
+                // turn buttonBrowseIn into a download button
+                buttonBrowseIn.Text = "Download";
+            }
+            else
+            {
+                buttonBrowseIn.Text = "Browse";
+            }
 
-                if (dialog.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(dialog.FileName))
+            if (e.KeyCode == Keys.Enter)
+            {
+                if (string.IsNullOrWhiteSpace(textBoxIn.Text))
                     return;
 
-                SetFile(dialog.FileName);
-                Properties.Settings.Default.RememberedFolderIn = Path.GetDirectoryName(dialog.FileName);
-                Properties.Settings.Default.Save();
+                if (textBoxIn.Text.StartsWith("http"))
+                {
+                    // download
+                    buttonBrowseIn_Click(sender, null);
+                    return;
+                }
+
+                SetFile(textBoxIn.Text);
+            }
+        }
+
+        void buttonBrowseIn_Click(object sender, EventArgs e)
+        {
+            if (textBoxIn.Text.StartsWith("http"))
+            {
+                // we're a download button right now
+                if (!VideoDownload.Enabled)
+                {
+                    var result = MessageBox.Show(
+                       $"Couldn't find Youtube-DL. Either download it and put it somewhere in your %PATH%, or place it next to WebMConverter.exe.{Environment.NewLine}" + 
+                        "You can download it from yt-dl.org",
+                        "ERROR", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error);
+                    if (result == DialogResult.Retry)
+                    {
+                        VideoDownload.CheckEnabled();
+                        buttonBrowseIn_Click(sender, e);
+                        return;
+                    }
+                }
+
+                using (var dialog = new DownloadDialog(textBoxIn.Text))
+                {
+                    var result = dialog.ShowDialog(this);
+
+                    if (result == DialogResult.OK)
+                    {
+                        var url = textBoxIn.Text;
+                        textBoxIn.Text = dialog.Outfile;
+                        buttonBrowseIn.Text = "Browse";
+                        SetFile(textBoxIn.Text);
+                        boxTitle.Text = url;
+                    }
+                }
+            }
+            else
+            {
+                using (var dialog = new OpenFileDialog())
+                {
+                    dialog.CheckFileExists = true;
+                    dialog.CheckPathExists = true;
+                    dialog.ValidateNames = true;
+                    dialog.InitialDirectory = Properties.Settings.Default.RememberedFolderIn;
+
+                    if (dialog.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(dialog.FileName))
+                        return;
+
+                    SetFile(dialog.FileName);
+                    Properties.Settings.Default.RememberedFolderIn = Path.GetDirectoryName(dialog.FileName);
+                    Properties.Settings.Default.Save();
+                }
             }
         }
 
@@ -363,6 +505,11 @@ namespace WebMConverter
                 (sender as Button).Enabled = false;
                 return;
             }
+
+            // access the values of the numeric boxes to force TextChanged to happen
+            var junk = numericCrf.Value;
+            junk = numericCrfTolerance.Value;
+            junk = numericAudioQuality.Value;
 
             try
             {
@@ -452,6 +599,26 @@ namespace WebMConverter
                     ((ToolStripItem)sender).Enabled = false;
                 }
                 boxAudio.Checked = boxAudio.Enabled = true;
+            }
+        }
+
+        void buttonFade_Click(object sender, EventArgs e)
+        {
+            using (var form = new FadeForm())
+            {
+                if (form.ShowDialog(this) != DialogResult.OK) return;
+
+                if (boxAdvancedScripting.Checked)
+                {
+                    textBoxProcessingScript.AppendText(Environment.NewLine + form.GeneratedFilter);
+                }
+                else
+                {
+                    Filters.Fade = form.GeneratedFilter;
+                    listViewProcessingScript.Items.Add("Fade", "fade");
+
+                    ((ToolStripItem)sender).Enabled = false;
+                }
             }
         }
 
@@ -555,6 +722,26 @@ namespace WebMConverter
             }
         }
 
+        void buttonRotate_Click(object sender, EventArgs e)
+        {
+            using (var form = new RotateForm())
+            {
+                if (form.ShowDialog(this) == DialogResult.OK)
+                {
+                    if (boxAdvancedScripting.Checked)
+                    {
+                        textBoxProcessingScript.AppendText(Environment.NewLine + form.GeneratedFilter);
+                    }
+                    else
+                    {
+                        Filters.Rotate = form.GeneratedFilter;
+                        listViewProcessingScript.Items.Add("Rotate", "rotate");
+                        (sender as ToolStripItem).Enabled = false;
+                    }
+                }
+            }
+        }
+
         void buttonSubtitle_Click(object sender, EventArgs e)
         {
             using (var form = new SubtitleForm())
@@ -629,16 +816,19 @@ namespace WebMConverter
 
         void toolStripFilterButtonsEnabled(bool enabled)
         {
-            buttonCaption.Enabled = enabled;
-            buttonCrop.Enabled = enabled;
-            buttonDub.Enabled = enabled;
-            buttonOverlay.Enabled = enabled;
-            buttonRate.Enabled = enabled;
-            buttonResize.Enabled = enabled;
-            buttonReverse.Enabled = enabled;
-            buttonSubtitle.Enabled = enabled;
-            buttonTrim.Enabled = enabled;
-            buttonExportProcessing.Enabled = enabled;
+            buttonCaption.Enabled = 
+            buttonCrop.Enabled =
+            buttonDub.Enabled =
+            buttonFade.Enabled =
+            buttonOverlay.Enabled =
+            buttonRate.Enabled =
+            buttonResize.Enabled =
+            buttonReverse.Enabled =
+            buttonRotate.Enabled =
+            buttonSubtitle.Enabled =
+            buttonTrim.Enabled =
+            buttonExportProcessing.Enabled =
+                enabled;
         }
 
         void listViewProcessingScript_KeyUp(object sender, KeyEventArgs e)
@@ -647,60 +837,7 @@ namespace WebMConverter
             {
                 foreach (ListViewItem item in (sender as ListView).SelectedItems)
                 {
-                    switch (item.Text)
-                    {
-                        case "Caption":
-                            Filters.Caption = null;
-                            buttonCaption.Enabled = true;
-                            break;
-                        case "Crop":
-                            Filters.Crop = null;
-                            buttonCrop.Enabled = true;
-                            SetSlices();
-                            break;
-                        case @"Dub":
-                            var oldfilter = Filters.Dub;
-                            Filters.Dub = null;
-                            buttonDub.Enabled = true;
-                            if (oldfilter.Mode != DubMode.TrimAudio) // the video duration may have changed
-                                UpdateArguments(sender, e);
-                            if (!Program.InputHasAudio)
-                                boxAudio.Checked = boxAudio.Enabled = false;
-                            break;
-                        case "Multiple Trim":
-                            Filters.MultipleTrim = null;
-                            buttonTrim.Enabled = true;
-                            UpdateArguments(sender, e);
-                            break;
-                        case "Overlay":
-                            Filters.Overlay = null;
-                            buttonOverlay.Enabled = true;
-                            break;
-                        case "Rate":
-                            Filters.Rate = null;
-                            buttonRate.Enabled = true;
-                            UpdateArguments(sender, e);
-                            break;
-                        case "Resize":
-                            Filters.Resize = null;
-                            buttonResize.Enabled = true;
-                            SetSlices();
-                            break;
-                        case "Reverse":
-                            Filters.Reverse = null;
-                            buttonReverse.Enabled = true;
-                            break;
-                        case "Subtitle":
-                            Filters.Subtitle = null;
-                            buttonSubtitle.Enabled = true;
-                            break;
-                        case "Trim":
-                            Filters.Trim = null;
-                            buttonTrim.Enabled = true;
-                            GenerateArguments();
-                            break;
-                    }
-                    (sender as ListView).Items.Remove(item);
+                    removeFilter(item);
                 }
             }
         }
@@ -737,6 +874,15 @@ namespace WebMConverter
                             Filters.Dub = form.GeneratedFilter;
                             if (oldfilter.Mode != DubMode.TrimAudio || Filters.Dub.Mode != DubMode.TrimAudio) // the video duration may have changed
                                 UpdateArguments(sender, e);
+                        }
+                    }
+                    break;
+                case "Fade":
+                    using (var form = new FadeForm(Filters.Fade))
+                    {
+                        if (form.ShowDialog(this) == DialogResult.OK)
+                        {
+                            Filters.Fade = form.GeneratedFilter;
                         }
                     }
                     break;
@@ -779,6 +925,15 @@ namespace WebMConverter
                         }
                     }
                     break;
+                case "Rotate":
+                    using (var form = new RotateForm(Filters.Rotate))
+                    {
+                        if (form.ShowDialog(this) == DialogResult.OK)
+                        {
+                            Filters.Rotate = form.GeneratedFilter;
+                        }
+                    }
+                    break;
                 case "Subtitle":
                     using (var form = new SubtitleForm(Filters.Subtitle))
                     {
@@ -800,6 +955,93 @@ namespace WebMConverter
                     break;
                 default:
                     MessageBox.Show("This filter has no options.");
+                    break;
+            }
+        }
+
+        private void listViewProcessingScript_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                if (listViewProcessingScript.FocusedItem.Bounds.Contains(e.Location))
+                {
+                    listViewContextMenu.Show(listViewProcessingScript, e.Location);
+                }
+            }
+        }
+
+        private void listViewContextMenuEdit_Click(object sender, EventArgs e)
+        {
+            listViewProcessingScript_ItemActivate(listViewProcessingScript, e);
+        }
+
+        private void listViewContextMenuDelete_Click(object sender, EventArgs e)
+        {
+            removeFilter(listViewProcessingScript.FocusedItem);
+        }
+
+        void removeFilter(ListViewItem filterListViewItem)
+        {
+            listViewProcessingScript.Items.Remove(filterListViewItem);
+            switch (filterListViewItem.Text)
+            {
+                case "Caption":
+                    Filters.Caption = null;
+                    buttonCaption.Enabled = true;
+                    break;
+                case "Crop":
+                    Filters.Crop = null;
+                    buttonCrop.Enabled = true;
+                    SetSlices();
+                    break;
+                case @"Dub":
+                    var oldfilter = Filters.Dub;
+                    Filters.Dub = null;
+                    buttonDub.Enabled = true;
+                    if (oldfilter.Mode != DubMode.TrimAudio) // the video duration may have changed
+                        UpdateArguments();
+                    if (!Program.InputHasAudio)
+                        boxAudio.Checked = boxAudio.Enabled = false;
+                    break;
+                case "Fade":
+                    Filters.Fade = null;
+                    buttonFade.Enabled = true;
+                    break;
+                case "Multiple Trim":
+                    Filters.MultipleTrim = null;
+                    buttonTrim.Enabled = true;
+                    UpdateArguments();
+                    break;
+                case "Overlay":
+                    Filters.Overlay = null;
+                    buttonOverlay.Enabled = true;
+                    break;
+                case "Rate":
+                    Filters.Rate = null;
+                    buttonRate.Enabled = true;
+                    UpdateArguments();
+                    break;
+                case "Resize":
+                    Filters.Resize = null;
+                    buttonResize.Enabled = true;
+                    SetSlices();
+                    break;
+                case "Rotate":
+                    Filters.Rotate = null;
+                    buttonRotate.Enabled = true;
+                    break;
+                case "Reverse":
+                    Filters.Reverse = null;
+                    buttonReverse.Enabled = true;
+                    break;
+                case "Subtitle":
+                    Filters.Subtitle = null;
+                    buttonSubtitle.Enabled = true;
+                    break;
+                case "Trim":
+                    Filters.Trim = null;
+                    buttonTrim.Enabled = true;
+                    GenerateArguments();
                     break;
             }
         }
@@ -984,8 +1226,8 @@ namespace WebMConverter
 
             boxAudio.Checked = Properties.Settings.Default.AudioEnabled;
 
-            numericCrf.Value = 10;
-            numericCrfTolerance.Value = 20;
+            numericCrf.Value = 30;
+            numericCrfTolerance.Value = 2;
             numericAudioQuality.Value = 3;
 
             comboLevels.SelectedIndex = 0;
@@ -1014,8 +1256,7 @@ namespace WebMConverter
                 return;
             }
 
-            if (inputFile != null)
-                inputFile.Close();
+            inputFile?.Close();
             UnloadFonts();
 
             textBoxIn.Text = path;
@@ -1027,7 +1268,7 @@ namespace WebMConverter
             audioDisabled = false;
 
             progressBarIndexing.Style = ProgressBarStyle.Marquee;
-            progressBarIndexing.Value = 30;
+            taskbarManager.SetProgressState(TaskbarProgressBarState.Indeterminate);
             boxIndexingProgress.Text = "";
             panelHideTheOptions.BringToFront();
 
@@ -1046,6 +1287,7 @@ namespace WebMConverter
             boxAdvancedScripting.Enabled = true;
             textBoxProcessingScript.Hide();
             listViewProcessingScript.Show();
+            SarCompensate = false;
 
             if (Path.GetExtension(path) == ".avs")
             {
@@ -1110,6 +1352,7 @@ namespace WebMConverter
             indexbw.ProgressChanged += new ProgressChangedEventHandler(delegate(object sender, ProgressChangedEventArgs e)
             {
                 this.progressBarIndexing.Value = e.ProgressPercentage;
+                taskbarManager.SetProgressValue(e.ProgressPercentage, 100);
             });
             indexbw.DoWork += delegate(object sender, DoWorkEventArgs e)
             {
@@ -1118,21 +1361,17 @@ namespace WebMConverter
 
                 indexer.UpdateIndexProgress += delegate(object sendertwo, FFMSSharp.IndexingProgressChangeEventArgs etwo)
                 {
-                    indexbw.ReportProgress((int)(((double)etwo.Current / (double)etwo.Total) * 100));
+                    indexbw.ReportProgress((int)(etwo.Current / (double)etwo.Total * 100));
                     indexer.CancelIndexing = indexbw.CancellationPending;
                 };
 
                 try
                 {
-                    if (audioDisabled) // Indexing failed because of the audio, so the user disabled it.
+                    if (!audioDisabled) // Indexing failed because of the audio, so the user disabled it.
                     {
-                        List<int> indexList = new List<int>(); // An empty list means index no tracks.
-                        index = indexer.Index(indexList);
+                        indexer.SetTrackTypeIndexSettings(FFMSSharp.TrackType.Audio, true);
                     }
-                    else
-                    {
-                        index = indexer.Index();
-                    }
+                    index = indexer.Index();
                 }
                 catch (OperationCanceledException)
                 {
@@ -1142,15 +1381,19 @@ namespace WebMConverter
                 }
                 catch (Exception error)
                 {
-                    if (error.Message.StartsWith("Audio format change detected"))
+                    logIndexingProgress(error.Message);
+
+                    if (error.Message.StartsWith("Audio format change detected") || error.Message.StartsWith("Audio decoding error"))
                     {
-                        const string message = "\nIf you were planning on making a WebM with audio, I'm afraid that's not going to happen.\nWould you like to index the file without audio?";
-                        const string caption = "Error";
                         DialogResult result = DialogResult.Cancel;
 
                         this.InvokeIfRequired(() =>
                         {
-                            result = MessageBox.Show(message, caption, MessageBoxButtons.OKCancel, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1);
+                            result = MessageBox.Show(
+                                $"Indexing error: {error.Message}{Environment.NewLine}" +
+                                $"If you were planning on making a WebM with audio, I'm afraid that's not going to happen.{Environment.NewLine}" + 
+                                "Would you like to index the file without audio?",
+                                "Error", MessageBoxButtons.OKCancel, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1);
                         });
 
                         audioDisabled = (result == DialogResult.OK);
@@ -1265,6 +1508,9 @@ namespace WebMConverter
                                         // See: https://github.com/nixxquality/WebMConverter/issues/89
                                     }
 
+                                    // Check if this is a Hi444p video - if so, we'll need to do something weird if you wanna add subs later.
+                                    Program.InputHasWeirdPixelFormat = nav.GetAttribute("pix_fmt", "").StartsWith("yuv444p");
+
                                     // Probe for sample aspect ratio
                                     string[] sar = null, dar = null;
 
@@ -1299,24 +1545,29 @@ namespace WebMConverter
                                     SubtitleType type;
                                     string extension;
 
-                                    if (streamtitle == "dvdsub") // Hold on a moment, this is a vobsub!
+                                    switch (streamtitle)
                                     {
-                                        type = SubtitleType.VobSub;
-                                        extension = ".idx";
-                                    }
-                                    else
-                                    {
-                                        type = SubtitleType.TextSub;
-                                        extension = "." + streamtitle; // YOLO
+                                        case "dvdsub":
+                                            type = SubtitleType.VobSub;
+                                            extension = ".idx";
+                                            break;
+                                        case "pgssub":
+                                            type = SubtitleType.PgsSub;
+                                            extension = ".sup";
+                                            break;
+                                        default:
+                                            type = SubtitleType.TextSub;
+                                            extension = "." + streamtitle; // YOLO
+                                            break;
                                     }
                                     
-                                    file = Path.Combine(Program.AttachmentDirectory, string.Format("sub{0}{1}", streamindex, extension));
-                                    logIndexingProgress(string.Format("Found subtitle track #{0}", streamindex));
+                                    file = Path.Combine(Program.AttachmentDirectory, $"sub{streamindex}{extension}");
+                                    logIndexingProgress($"Found subtitle track #{streamindex}");
 
                                     if (!File.Exists(file)) // If we didn't extract it already
                                     {
                                         logIndexingProgress("Extracting...");
-                                        using (var mkvextract = new MkvExtract(string.Format(@"tracks ""{0}"" ""{1}:{2}""", Program.InputFile, streamindex, file)))
+                                        using (var mkvextract = new MkvExtract($@"tracks ""{Program.InputFile}"" ""{streamindex}:{file}"""))
                                         {
                                             mkvextract.Start();
                                             mkvextract.WaitForExit();
@@ -1349,7 +1600,7 @@ namespace WebMConverter
                                     var mimetype = nav.GetAttribute("value", "");
 
                                     file = Path.Combine(Program.AttachmentDirectory, filename);
-                                    logIndexingProgress(string.Format("Found attachment '{0}'", filename));
+                                    logIndexingProgress($"Found attachment '{filename}'");
 
                                     attachindex += 1;
 
@@ -1368,7 +1619,7 @@ namespace WebMConverter
                                     }
 
                                     logIndexingProgress("Extracting...");
-                                    using (var mkvextract = new MkvExtract(string.Format(@"attachments ""{0}"" ""{1}:{2}""", Program.InputFile, attachindex, file)))
+                                    using (var mkvextract = new MkvExtract($@"attachments ""{Program.InputFile}"" ""{attachindex}:{file}"""))
                                     {
                                         mkvextract.Start();
                                         mkvextract.WaitForExit();
@@ -1397,6 +1648,7 @@ namespace WebMConverter
             {
                 if (audioDisabled == true && e.Cancelled)
                 {
+                    logIndexingProgress("Restarting indexing without audio");
                     indexbw.RunWorkerAsync();
                     return;
                 }
@@ -1412,8 +1664,8 @@ namespace WebMConverter
                 else
                 {
                     labelIndexingProgress.Text = "Extracting subtitle tracks and attachments...";
-                    progressBarIndexing.Value = 30;
                     progressBarIndexing.Style = ProgressBarStyle.Marquee;
+                    taskbarManager.SetProgressState(TaskbarProgressBarState.Indeterminate);
 
                     extractbw.RunWorkerAsync();
                 }
@@ -1423,9 +1675,7 @@ namespace WebMConverter
                 if (e.Error != null)
                 {
                     CancelIndexing();
-                    const string text = "We couldn't find any video tracks!\nPlease use another input file.";
-                    const string caption = "ERROR";
-                    MessageBox.Show(text, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"We couldn't find any video tracks!{Environment.NewLine}Please use another input file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 boxAudio.Enabled = Program.InputHasAudio = true;
                 if (audioDisabled)
@@ -1443,9 +1693,11 @@ namespace WebMConverter
                         case ".bmp":
                             break;
                         default:
-                            const string text = "We couldn't find any audio tracks.\nIf you want sound, please use another input file.\nIf you don't want audio in your output webm, there's nothing to worry about.";
-                            const string caption = "FYI";
-                            MessageBox.Show(text, caption, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            MessageBox.Show(
+                                $"We couldn't find any audio tracks.{Environment.NewLine}" + 
+                                $"If you want sound, please use another input file.{Environment.NewLine}" + 
+                                "If you don't want audio in your output webm, there's nothing to worry about.",
+                                "FYI", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             break;
                     }
                     boxAudio.Checked = boxAudio.Enabled = Program.InputHasAudio = false;
@@ -1466,6 +1718,7 @@ namespace WebMConverter
                         boxDeinterlace.Checked = true;
 
                 panelHideTheOptions.SendToBack();
+                taskbarManager.SetProgressState(TaskbarProgressBarState.NoProgress);
             };
 
             if (File.Exists(_indexFile))
@@ -1486,8 +1739,8 @@ namespace WebMConverter
                         }
 
                         labelIndexingProgress.Text = "Extracting subtitle tracks and attachments...";
-                        progressBarIndexing.Value = 30;
                         progressBarIndexing.Style = ProgressBarStyle.Marquee;
+                        taskbarManager.SetProgressState(TaskbarProgressBarState.Indeterminate);
 
                         extractbw.RunWorkerAsync();
                         return;
@@ -1504,6 +1757,7 @@ namespace WebMConverter
             buttonGo.Text = "Cancel";
             progressBarIndexing.Value = 0;
             progressBarIndexing.Style = ProgressBarStyle.Continuous;
+            taskbarManager.SetProgressState(TaskbarProgressBarState.Normal);
             labelIndexingProgress.Text = "Indexing...";
             indexbw.RunWorkerAsync();
         }
@@ -1516,6 +1770,7 @@ namespace WebMConverter
             Program.FileMd5 = null;
             buttonBrowseIn.Enabled = true;
             textBoxIn.Enabled = true;
+            taskbarManager.SetProgressState(TaskbarProgressBarState.NoProgress);
             panelHideTheOptions.SendToBack();
         }
 
@@ -1525,7 +1780,7 @@ namespace WebMConverter
                 throw new Exception("No input file!");
 
             if (invalidChars.Any(input.Contains))
-                throw new Exception("Input path contains invalid characters!\nInvalid characters: " + string.Join(" ", invalidChars));
+                throw new Exception($"Input path contains invalid characters!{Environment.NewLine}Invalid characters: " + string.Join(" ", invalidChars));
 
             if (!File.Exists(input))
                 throw new Exception("Input file doesn't exist!");
@@ -1540,7 +1795,8 @@ namespace WebMConverter
                 throw new Exception("Output path contains invalid characters!\nInvalid characters: " + string.Join(" ", invalidChars));
         }
 
-        void UpdateArguments(object sender, EventArgs e)
+        void UpdateArguments(object sender, EventArgs e) => UpdateArguments();
+        void UpdateArguments()
         {
             if (Program.InputFile == null)
                 return;
@@ -1567,41 +1823,50 @@ namespace WebMConverter
         {
             using (StreamWriter avscript = new StreamWriter(avsFileName, false))
             {
-                // AviSynth can't LoadPlugin if the path contains non-english characters, so we convert the possibly weird path into 8.3 notation
-                StringBuilder shortPluginPath = new StringBuilder(255);
-                string pluginPath = Path.Combine(Environment.CurrentDirectory, "Binaries", "Win32");
-                NativeMethods.GetShortPathName(@"\\?\" + pluginPath, shortPluginPath, shortPluginPath.Capacity);
-                // the \\?\ is added because GetShortPathName will fail if pluginPath is longer than 256 characters otherwise.
+                var pluginPath = Path.Combine(Environment.CurrentDirectory, "Binaries", "Win32");
+                var shortPluginPath = GetCompatiblePath(pluginPath);
 
-                avscript.WriteLine(@"PluginPath = ""{0}\""", shortPluginPath);
+                avscript.WriteLine($@"PluginPath = ""{shortPluginPath}\""");
                 avscript.WriteLine(@"try { LoadPlugin(PluginPath+""ffms2.dll"") } catch (_) { LoadCPlugin(PluginPath+""ffms2.dll"") }");
                 if (Filters.Subtitle != null)
-                    avscript.WriteLine(@"LoadPlugin(PluginPath+""VSFilter.dll"")");
+                {
+                    string plugin;
 
-                // UTF-8 argument bug workaround
-                // see https://github.com/FFMS/ffms2/pull/167
-                avscript.WriteLine(@"FFIndex(""{0}"", cachefile=""{1}"", utf8=True)", avsInputFile, _indexFile);
-                // this won't actually index file file (we already did), but it will call FFMS_Init with utf8 = true properly, unlike FFVideoSource
+                    switch (Filters.Subtitle.Type)
+                    {
+                        case SubtitleType.TextSub:
+                        case SubtitleType.VobSub:
+                            plugin = "VSFilter.dll";
+                            break;
+                        case SubtitleType.PgsSub:
+                            plugin = "SupTitle.dll";
+                            break;
+                        default:
+                            throw new NotImplementedException();
+                    }
+                    
+                    avscript.WriteLine($@"LoadPlugin(PluginPath+""{plugin}"")");
+                }
 
                 if (Program.InputHasAudio)
-                    avscript.WriteLine(@"AudioDub(FFVideoSource(""{0}"",cachefile=""{1}"",track={2}), FFAudioSource(""{0}"",cachefile=""{1}"",track={3}))", avsInputFile, _indexFile, videotrack, audiotrack);
+                    avscript.WriteLine($@"AudioDub(FFVideoSource(""{avsInputFile}"",cachefile=""{_indexFile}"",track={videotrack}), FFAudioSource(""{avsInputFile}"",cachefile=""{_indexFile}"",track={audiotrack}))");
                 else
-                    avscript.WriteLine(@"FFVideoSource(""{0}"",cachefile=""{1}"",track={2})", avsInputFile, _indexFile, videotrack);
+                    avscript.WriteLine($@"FFVideoSource(""{avsInputFile}"",cachefile=""{_indexFile}"",track={videotrack})");
 
                 if (Filters.Deinterlace != null)
                 {
                     avscript.WriteLine(@"LoadPlugin(PluginPath+""TDeint.dll"")");
-                    avscript.WriteLine(Filters.Deinterlace.ToString());
+                    avscript.WriteLine(Filters.Deinterlace);
                 }
 
                 if (Filters.Denoise != null)
                 {
                     avscript.WriteLine(@"LoadPlugin(PluginPath+""hqdn3d.dll"")");
-                    avscript.WriteLine(Filters.Denoise.ToString());
+                    avscript.WriteLine(Filters.Denoise);
                 }
 
                 if (Filters.Levels != null)
-                    avscript.WriteLine(Filters.Levels.ToString());
+                    avscript.WriteLine(Filters.Levels);
 
                 if (SarCompensate)
                     avscript.WriteLine(new ResizeFilter(SarWidth, SarHeight));
@@ -1626,7 +1891,8 @@ namespace WebMConverter
             WriteAvisynthScript(avsFileName, input);
 
             // Run ffplay
-            var ffplay = new FFplay(string.Format("-window_title Preview -loop 0 -f avisynth -v error {1} \"{0}\"", avsFileName, boxAudio.Checked ? "" : "-an"));
+            var disableAudio = boxAudio.Checked ? "" : "-an";
+            var ffplay = new FFplay($@"-window_title Preview -loop 0 -f avisynth -v error {disableAudio} ""{avsFileName}""");
             ffplay.Exited += delegate
             {
                 string error = null;
@@ -1682,7 +1948,7 @@ namespace WebMConverter
                 arguments = new[] { string.Format(Template, output, options, "") };
             else
             {
-                var passlogfile = GetTemporaryFile();
+                var passlogfile = GetTemporaryLogFile();
                 arguments = new string[2]; //           vvv is Windows only
                 arguments[0] = string.Format(Template, "NUL", options, string.Format(PassArgument, 1, passlogfile));
                 arguments[1] = string.Format(Template, output, options, string.Format(PassArgument, 2, passlogfile));
@@ -1691,7 +1957,7 @@ namespace WebMConverter
                     arguments[0] = arguments[0].Replace("-c:v libvpx", "-an -c:v libvpx"); // ugly as hell
             }
 
-            new ConverterDialog(avsFileName, arguments).ShowDialog(this);
+            new ConverterDialog(avsFileName, arguments, output).ShowDialog(this);
         }
 
         string GenerateArguments()
@@ -1713,7 +1979,7 @@ namespace WebMConverter
                         // see https://github.com/nixxquality/WebMConverter/issues/120
                         limit = limit * 1024 * 1024;
 
-                        limitTo = string.Format(@" -fs {0}", (int)limit);
+                        limitTo = $@" -fs {(int)limit}";
                     }
 
                     var audiobitrate = -1;
@@ -1743,21 +2009,19 @@ namespace WebMConverter
                         var duration = GetDuration();
 
                         if (duration > 0)
-                            videobitrate = (int)(limit / duration / 100) - audiobitrate;
-
-                        videobitrate = (int)(videobitrate * 0.90); // VP8 a shit
+                            videobitrate = (int)(limit / duration / 1024 * 8) - audiobitrate;
 
                         if (videobitrate < 0)
-                            throw new ArgumentException("Audio bitrate is too high! With that size limit, you won't be able to fit any video!");
+                            throw new ArgumentException("Your size constraints are too tight! Trim your video or lower your audio bitrate.");
                     }
 
                     /*
                      * ffmpeg doesn't let you input the cbr arguments manually (I think) so we do a bit of math here.
-                     * ffmpeg lists this in the documentation (http://ffmpeg.org/ffmpeg-all.html#libvpx):
+                     * ffmpeg lists this in the documentation (https://ffmpeg.org/ffmpeg-all.html#libvpx):
                      *  rc_buf_sz         = (bufsize * 1000 / vb)
                      *  rc_buf_optimal_sz = (bufsize * 1000 / vb * 5 / 6)
                      *  rc_buf_initial_sz = (rc_init_occupancy * 1000 / vb)
-                     * libvpx lists this in the documentation (http://www.webmproject.org/docs/encoder-parameters/#vbr-cbr-and-cq-mode):
+                     * libvpx lists this in the documentation (https://www.webmproject.org/docs/encoder-parameters/#vbr-cbr-and-cq-mode):
                      *  --buf-initial-sz=<arg>
                      *  --buf-optimal-sz=<arg>
                      *  --buf-sz=<arg>
@@ -1800,7 +2064,7 @@ namespace WebMConverter
 
             var hq = "";
             if (boxHQ.Checked)
-                hq = @" -quality best -lag-in-frames 16 -auto-alt-ref 1";
+                hq = @" -lag-in-frames 16 -auto-alt-ref 1";
 
             var vcodec = boxNGOV.Checked ? @"libvpx-vp9" : @"libvpx";
             var acodec = boxNGOV.Checked ? @"libopus" : @"libvorbis";
@@ -1835,18 +2099,25 @@ namespace WebMConverter
             if (boxAdvancedScripting.Checked || Program.InputType == FileType.Avisynth)
             {
                 // The dirty way.
-
-                using (XmlReader reader = XmlReader.Create(new StringReader(avsScriptInfo)))
+                
+                try
                 {
-                    reader.ReadToFollowing("stream");
-
-                    while (reader.MoveToNextAttribute())
+                    using (XmlReader reader = XmlReader.Create(new StringReader(avsScriptInfo)))
                     {
-                        if (reader.Name == "duration")
+                        reader.ReadToFollowing("stream");
+
+                        while (reader.MoveToNextAttribute())
                         {
-                            return double.Parse(reader.Value, CultureInfo.InvariantCulture);
+                            if (reader.Name == "duration")
+                            {
+                                return double.Parse(reader.Value, CultureInfo.InvariantCulture);
+                            }
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to get duration from Avisynth script. Error: ${ex.Message}\navsScriptInfo: ${avsScriptInfo}", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                 }
 
                 return -1;
@@ -1861,7 +2132,7 @@ namespace WebMConverter
                 else if (Filters.MultipleTrim != null)
                     duration = Filters.MultipleTrim.GetDuration();
                 else 
-                    duration = Program.FrameToTimeSpan(Program.VideoSource.NumberOfFrames - 1).TotalSeconds;
+                    duration = FrameToTimeSpan(Program.VideoSource.NumberOfFrames - 1).TotalSeconds;
 
                 if (Filters.Rate != null)
                 {
@@ -1880,21 +2151,28 @@ namespace WebMConverter
 
                 int width = -1, height = -1;
 
-                using (XmlReader reader = XmlReader.Create(new StringReader(avsScriptInfo)))
+                try
                 {
-                    reader.ReadToFollowing("stream");
-
-                    while (reader.MoveToNextAttribute())
+                    using (XmlReader reader = XmlReader.Create(new StringReader(avsScriptInfo)))
                     {
-                        if (reader.Name == "width")
+                        reader.ReadToFollowing("stream");
+
+                        while (reader.MoveToNextAttribute())
                         {
-                            width = int.Parse(reader.Value);
-                        }
-                        if (reader.Name == "height")
-                        {
-                            height = int.Parse(reader.Value);
+                            if (reader.Name == "width")
+                            {
+                                width = int.Parse(reader.Value);
+                            }
+                            if (reader.Name == "height")
+                            {
+                                height = int.Parse(reader.Value);
+                            }
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to get resolution from Avisynth script. Error: ${ex.Message}\navsScriptInfo: ${avsScriptInfo}", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                 }
 
                 return new Size(width, height);
@@ -1947,6 +2225,10 @@ namespace WebMConverter
                 script.AppendLine(Filters.Reverse.ToString());
             if (Filters.Dub != null)
                 script.AppendLine(Filters.Dub.ToString());
+            if (Filters.Fade != null)
+                script.AppendLine(Filters.Fade.ToString());
+            if (Filters.Rotate != null)
+                script.AppendLine(Filters.Rotate.ToString());
 
             textBoxProcessingScript.Text = script.ToString();
         }
@@ -1972,16 +2254,9 @@ namespace WebMConverter
             avsScriptInfo = ffprobe.Probe();
         }
 
-        int GetSlices()
-        {
-            return (int)Math.Pow(2, trackSlices.Value - 1);
-        }
+        int GetSlices() => (int)Math.Pow(2, trackSlices.Value - 1);
 
-        void SetSlices()
-        {
-            SetSlices(GetResolution());
-        }
-
+        void SetSlices() => SetSlices(GetResolution());
         void SetSlices(Size resolution)
         {
             int slices;
@@ -2013,20 +2288,18 @@ namespace WebMConverter
         {
             Program.AttachmentList.ForEach(filename =>
             {
-                if (action != null) action(string.Format("Loading font {0}", filename));
+                action?.Invoke($"Loading font {filename}");
 
                 var ret = NativeMethods.AddFontResourceEx(Path.Combine(Program.AttachmentDirectory, filename), 0, IntPtr.Zero);
 
-                if (ret == 0 && action != null) action("Failed!");
+                if (ret == 0)
+                    action?.Invoke("Failed!");
             });
         }
 
         private void UnloadFonts()
         {
-            if (Program.AttachmentList == null)
-                return;
-
-            Program.AttachmentList.ForEach(filename =>
+            Program.AttachmentList?.ForEach(filename =>
             {
                 NativeMethods.RemoveFontResourceEx(Path.Combine(Program.AttachmentDirectory, filename), 0, IntPtr.Zero);
             });
@@ -2037,6 +2310,14 @@ namespace WebMConverter
         {
             var temporaryFile = Path.GetTempFileName();
             _temporaryFilesList.Add(temporaryFile);
+            return temporaryFile;
+        }
+
+        private string GetTemporaryLogFile()
+        {
+            var temporaryFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            var temporaryFileRealName = temporaryFile + "-0.log";
+            _temporaryFilesList.Add(temporaryFileRealName);
             return temporaryFile;
         }
 

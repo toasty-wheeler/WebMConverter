@@ -6,12 +6,12 @@ namespace WebMConverter.Components
 {
     class MkvExtract : Process
     {
-        private readonly string _programPath = Path.Combine(Environment.CurrentDirectory, @"Binaries", @"Win32", @"mkvextract.exe");
+        private readonly string _programPath = Path.Combine(Environment.CurrentDirectory, "Binaries", "Win32", "mkvextract.exe");
 
         public MkvExtract(string argument)
         {
-            if (String.IsNullOrEmpty(argument))
-                throw new ArgumentNullException(@"argument");
+            if (string.IsNullOrEmpty(argument))
+                throw new ArgumentNullException(nameof(argument));
 
             StartInfo.FileName = _programPath;
             StartInfo.Arguments = argument;

@@ -2,6 +2,7 @@
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ApplicationIcon>icon.ico</ApplicationIcon>
+    <NuGetPackageImportStamp>3d018462</NuGetPackageImportStamp>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -40,28 +41,22 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="FFMSsharp, Version=2.0.1.0, Culture=neutral, processorArchitecture=x86">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>packages\FFMSSharp.2.0.1.0\lib\net40-Client\FFMSsharp.dll</HintPath>
-    </Reference>
-    <Reference Include="GitHubUpdate, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>packages\GitHubUpdate.1.2.0.0\lib\net45\GitHubUpdate.dll</HintPath>
-    </Reference>
-    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>packages\Newtonsoft.Json.6.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="FFMSSharp, Version=3.0.1.0, Culture=neutral, processorArchitecture=x86">
+      <HintPath>packages\FFMSSharp.3.0.1.0\lib\net40\FFMSSharp.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Octokit">
-      <HintPath>packages\Octokit.0.3.4\lib\net45\Octokit.dll</HintPath>
+    <Reference Include="Microsoft.WindowsAPICodePack, Version=1.1.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\WindowsAPICodePack-Core.1.1.2\lib\Microsoft.WindowsAPICodePack.dll</HintPath>
+      <Private>True</Private>
     </Reference>
-    <Reference Include="Semver">
-      <HintPath>packages\semver.1.1.2\lib\net45\Semver.dll</HintPath>
+    <Reference Include="Microsoft.WindowsAPICodePack.Shell, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\WindowsAPICodePack-Shell.1.1.1\lib\Microsoft.WindowsAPICodePack.Shell.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Net.Http" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Deployment" />
@@ -73,11 +68,26 @@
     <Compile Include="Components\mkvextract.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Components\Updater.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DownloadDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DownloadDialog.Designer.cs">
+      <DependentUpon>DownloadDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Dialogs\ConverterDialog.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Dialogs\ConverterDialog.Designer.cs">
       <DependentUpon>ConverterDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\UpdateNotifyDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\UpdateNotifyDialog.designer.cs">
+      <DependentUpon>UpdateNotifyDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="Filters\Deinterlace.cs" />
     <Compile Include="Filters\Denoise.cs" />
@@ -86,6 +96,12 @@
     </Compile>
     <Compile Include="Filters\Dub.Designer.cs">
       <DependentUpon>Dub.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Filters\Fade.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Filters\Fade.Designer.cs">
+      <DependentUpon>Fade.cs</DependentUpon>
     </Compile>
     <Compile Include="Filters\Levels.cs" />
     <Compile Include="Filters\Overlay.cs">
@@ -134,6 +150,12 @@
       <DependentUpon>Rate.cs</DependentUpon>
     </Compile>
     <Compile Include="Filters\Reverse.cs" />
+    <Compile Include="Filters\RotateForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Filters\RotateForm.Designer.cs">
+      <DependentUpon>RotateForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -178,11 +200,20 @@
     <Compile Include="Components\TimeSpanBox.Designer.cs">
       <DependentUpon>TimeSpanBox.cs</DependentUpon>
     </Compile>
+    <Compile Include="ShareXUpload.cs" />
+    <Compile Include="Utility.cs" />
+    <Compile Include="VideoDownload.cs" />
+    <EmbeddedResource Include="Dialogs\DownloadDialog.resx">
+      <DependentUpon>DownloadDialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Dialogs\ConverterDialog.resx">
       <DependentUpon>ConverterDialog.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Filters\Dub.resx">
       <DependentUpon>Dub.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Filters\Fade.resx">
+      <DependentUpon>Fade.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Filters\Overlay.resx">
       <DependentUpon>Overlay.cs</DependentUpon>
@@ -198,6 +229,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Filters\Rate.resx">
       <DependentUpon>Rate.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Filters\RotateForm.resx">
+      <DependentUpon>RotateForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
@@ -237,19 +271,19 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Binaries\Win32\avcodec-55.dll">
+    <Content Include="Binaries\Win32\avcodec-56.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Binaries\Win32\avdevice-55.dll">
+    <Content Include="Binaries\Win32\avdevice-56.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Binaries\Win32\avfilter-4.dll">
+    <Content Include="Binaries\Win32\avfilter-5.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Binaries\Win32\avformat-55.dll">
+    <Content Include="Binaries\Win32\avformat-56.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Binaries\Win32\avutil-52.dll">
+    <Content Include="Binaries\Win32\avutil-54.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Binaries\Win32\ffmpeg.exe">
@@ -273,13 +307,25 @@
     <Content Include="Binaries\Win32\mkvextract.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Binaries\Win32\postproc-52.dll">
+    <Content Include="Binaries\Win32\msvcp100.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Binaries\Win32\swresample-0.dll">
+    <Content Include="Binaries\Win32\msvcr100.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Binaries\Win32\swscale-2.dll">
+    <Content Include="Binaries\Win32\postproc-53.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Binaries\Win32\SupCore.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Binaries\Win32\SupTitle.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Binaries\Win32\swresample-1.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Binaries\Win32\swscale-3.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Binaries\Win32\TDeint.dll">
@@ -301,4 +347,18 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <Target Name="AfterBuild" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <MergeAssemblies Include="$(OutputPath)\WebMConverter.exe" />
+      <MergeAssemblies Include="$(OutputPath)\FFMSSharp.dll" />
+      <MergeAssemblies Include="$(OutputPath)\Microsoft.WindowsAPICodePack.dll" />
+      <MergeAssemblies Include="$(OutputPath)\Microsoft.WindowsAPICodePack.Shell.dll" />
+    </ItemGroup>
+    <PropertyGroup>
+      <OutputAssembly>$(OutputPath)\WebMConverter.merged.exe</OutputAssembly>
+      <Merger>"$(SolutionDir)\packages\ilmerge.2.14.1208\tools\ILMerge.exe"</Merger>
+    </PropertyGroup>
+    <Message Text="MERGING: @(MergeAssemblies->'%(Filename)') into $(OutputAssembly)" Importance="High" />
+    <Exec Command="$(Merger) /out:&quot;$(OutputAssembly)&quot; @(MergeAssemblies->'&quot;%(FullPath)&quot;', ' ')" />
+  </Target>
 </Project>

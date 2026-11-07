@@ -187,7 +187,6 @@
             this.previewFrame.BackColor = System.Drawing.SystemColors.ControlDark;
             this.previewFrame.Cursor = System.Windows.Forms.Cursors.SizeAll;
             this.previewFrame.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.previewFrame.Frame = 0;
             this.previewFrame.Location = new System.Drawing.Point(0, 27);
             this.previewFrame.Name = "previewFrame";
             this.previewFrame.Size = new System.Drawing.Size(744, 517);
