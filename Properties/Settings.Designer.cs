@@ -94,5 +94,17 @@ namespace WebMConverter.Properties {
                 this["SeenNotice2"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ShowLivePreview {
+            get {
+                return ((bool)(this["ShowLivePreview"]));
+            }
+            set {
+                this["ShowLivePreview"] = value;
+            }
+        }
     }
 }

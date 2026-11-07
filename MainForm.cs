@@ -118,6 +118,8 @@ namespace WebMConverter
             boxAudio.Checked = Properties.Settings.Default.AudioEnabled;
 
             taskbarManager = TaskbarManager.Instance;
+
+            SetupLivePreview();
         }
 
         void MainForm_Load(object sender, EventArgs e)
@@ -222,6 +224,7 @@ namespace WebMConverter
 
         void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            ShutdownLivePreview();
             inputFile?.Close();
             UnloadFonts();
 
@@ -1819,9 +1822,17 @@ namespace WebMConverter
             }
         }
 
-        void WriteAvisynthScript(string avsFileName, string avsInputFile)
+        void WriteAvisynthScript(string avsFileName, string avsInputFile) =>
+            WriteAvisynthScript(avsFileName, avsInputFile, textBoxProcessingScript.Text);
+
+        void WriteAvisynthScript(string avsFileName, string avsInputFile, string processingScript)
         {
-            using (StreamWriter avscript = new StreamWriter(avsFileName, false))
+            File.WriteAllText(avsFileName, BuildAvisynthScript(avsInputFile, processingScript));
+        }
+
+        string BuildAvisynthScript(string avsInputFile, string processingScript)
+        {
+            using (var avscript = new StringWriter())
             {
                 var pluginPath = Path.Combine(Environment.CurrentDirectory, "Binaries", "Win32");
                 var shortPluginPath = GetCompatiblePath(pluginPath);
@@ -1871,7 +1882,8 @@ namespace WebMConverter
                 if (SarCompensate)
                     avscript.WriteLine(new ResizeFilter(SarWidth, SarHeight));
 
-                avscript.Write(textBoxProcessingScript.Text);
+                avscript.Write(processingScript);
+                return avscript.ToString();
             }
         }
 
@@ -2200,13 +2212,24 @@ namespace WebMConverter
 
         void GenerateAvisynthScript()
         {
+            textBoxProcessingScript.Text = BuildProcessingScript(renderCaption: true);
+        }
+
+        /// <summary>
+        /// Builds the processing part of the script from the simple-mode filters.
+        /// </summary>
+        /// <param name="renderCaption">Render the caption image to disk. Without it the text is still
+        /// correct (the image path never changes) but the image may be stale.</param>
+        string BuildProcessingScript(bool renderCaption)
+        {
             StringBuilder script = new StringBuilder();
             script.AppendLine("# This is an AviSynth script. You may write advanced commands below, or just press the buttons above for smooth sailing.");
             if (Filters.Subtitle != null)
                 script.AppendLine(Filters.Subtitle.ToString());
             if (Filters.Caption != null)
             {
-                Filters.Caption.BeforeEncode(Program.VideoSource.GetFrame(0).EncodedResolution);
+                if (renderCaption)
+                    Filters.Caption.BeforeEncode(Program.VideoSource.GetFrame(0).EncodedResolution);
                 script.AppendLine(Filters.Caption.ToString());
             }
             if (Filters.Overlay != null)
@@ -2230,7 +2253,7 @@ namespace WebMConverter
             if (Filters.Rotate != null)
                 script.AppendLine(Filters.Rotate.ToString());
 
-            textBoxProcessingScript.Text = script.ToString();
+            return script.ToString();
         }
 
         void ProbeScript()
