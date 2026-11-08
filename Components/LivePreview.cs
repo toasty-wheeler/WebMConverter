@@ -2,26 +2,27 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using System.Threading;
 using System.Windows.Forms;
 
 namespace WebMConverter.Components
 {
     /// <summary>
-    /// A side panel that shows the output of the current AviSynth script, with seeking and playback.
+    /// A panel that shows the output of the current AviSynth script, with seeking and playback.
     /// AviSynth runs on a dedicated background thread; the UI only ever sees finished bitmaps.
     /// </summary>
     public class LivePreview : UserControl
     {
         #region UI
 
+        const string CanvasTip = "Scroll to step through frames, Space to play";
+
         readonly PreviewCanvas canvas;
-        readonly TrackBar seekBar;
-        readonly Button buttonPrevious, buttonPlay, buttonNext, buttonPopout;
-        readonly Label labelPosition, labelInfo;
+        readonly Label labelInfo;
         readonly ToolTip toolTip;
 
-        bool updatingSeekBar;
+        bool transportEnabled;
 
         /// <summary>Raised when the user asks for the full ffplay preview (with audio).</summary>
         public event EventHandler PopoutRequested;
@@ -37,8 +38,13 @@ namespace WebMConverter.Components
 
             canvas = new PreviewCanvas { Dock = DockStyle.Fill };
             canvas.MouseWheel += Canvas_MouseWheel;
-            canvas.MouseClick += (s, e) => canvas.Focus();
             canvas.KeyDown += Canvas_KeyDown;
+            canvas.SeekRequested += (s, frame) => RequestFrame(frame, stopPlayback: true);
+            canvas.PreviousClicked += (s, e) => Step(-1);
+            canvas.PlayClicked += (s, e) => TogglePlay();
+            canvas.NextClicked += (s, e) => Step(1);
+            canvas.PopoutClicked += (s, e) => PopoutRequested?.Invoke(this, EventArgs.Empty);
+            canvas.HoverTipChanged += (s, e) => toolTip.SetToolTip(canvas, canvas.HoverTip ?? CanvasTip);
 
             labelInfo = new Label
             {
@@ -49,68 +55,12 @@ namespace WebMConverter.Components
                 ForeColor = SystemColors.GrayText,
             };
 
-            seekBar = new TrackBar
-            {
-                Dock = DockStyle.Bottom,
-                TickStyle = TickStyle.None,
-                AutoSize = false,
-                Height = 26,
-                Minimum = 0,
-                Maximum = 0,
-                SmallChange = 1,
-                Enabled = false,
-            };
-            seekBar.ValueChanged += SeekBar_ValueChanged;
-
-            var controls = new TableLayoutPanel
-            {
-                Dock = DockStyle.Bottom,
-                Height = 30,
-                ColumnCount = 5,
-                RowCount = 1,
-                Margin = Padding.Empty,
-            };
-            controls.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34));
-            controls.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44));
-            controls.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34));
-            controls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            controls.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
-
-            buttonPrevious = MakeGlyphButton(Glyph.Previous, "Previous frame (Left arrow)");
-            buttonPlay = MakeGlyphButton(Glyph.Play, "Play / pause (Space)");
-            buttonNext = MakeGlyphButton(Glyph.Next, "Next frame (Right arrow)");
-            buttonPopout = MakeButton("ffplay", "Open the full preview with audio in ffplay");
-            buttonPrevious.Click += (s, e) => Step(-1);
-            buttonNext.Click += (s, e) => Step(1);
-            buttonPlay.Click += (s, e) => TogglePlay();
-            buttonPopout.Click += (s, e) => PopoutRequested?.Invoke(this, EventArgs.Empty);
-
-            labelPosition = new Label
-            {
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font(FontFamily.GenericMonospace, 8.25f),
-                AutoEllipsis = true,
-            };
-
-            controls.Controls.Add(buttonPrevious, 0, 0);
-            controls.Controls.Add(buttonPlay, 1, 0);
-            controls.Controls.Add(buttonNext, 2, 0);
-            controls.Controls.Add(labelPosition, 3, 0);
-            controls.Controls.Add(buttonPopout, 4, 0);
-
             group.Controls.Add(canvas);
             group.Controls.Add(labelInfo);
-            group.Controls.Add(seekBar);
-            group.Controls.Add(controls);
             Controls.Add(group);
 
             toolTip = new ToolTip();
-            toolTip.SetToolTip(buttonPrevious, (string)buttonPrevious.Tag);
-            toolTip.SetToolTip(buttonPlay, (string)buttonPlay.Tag);
-            toolTip.SetToolTip(buttonNext, (string)buttonNext.Tag);
-            toolTip.SetToolTip(buttonPopout, (string)buttonPopout.Tag);
-            toolTip.SetToolTip(canvas, "Scroll to step through frames, Space to play");
+            toolTip.SetToolTip(canvas, CanvasTip);
 
             ResumeLayout(false);
 
@@ -121,112 +71,45 @@ namespace WebMConverter.Components
             renderThread.Start();
         }
 
-        enum Glyph { Previous, Play, Pause, Next }
-
-        /// <summary>A button with a drawn icon, so it looks the same in every theme and button style.</summary>
-        static GlyphButton MakeGlyphButton(Glyph glyph, string tip) => new GlyphButton
-        {
-            Glyph = glyph,
-            Tag = tip,
-            Dock = DockStyle.Fill,
-            Margin = new Padding(1),
-            FlatStyle = FlatStyle.Standard,
-        };
-
-        /// <summary>A button with a drawn icon, so it looks the same in every theme and button style.</summary>
-        sealed class GlyphButton : Button
-        {
-            Glyph glyph;
-            public Glyph Glyph { get => glyph; set { glyph = value; Invalidate(); } }
-
-            protected override void OnPaint(PaintEventArgs e)
-            {
-                base.OnPaint(e);
-                var g = e.Graphics;
-                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                int s = Math.Min(10, Math.Min(Width, Height) / 2 - 3);
-                float cx = Width / 2f, cy = Height / 2f;
-                var color = Enabled ? ForeColor : SystemColors.GrayText;
-                using (var brush = new SolidBrush(color))
-                {
-                    PointF[] Triangle(float left, bool pointRight) => pointRight
-                        ? new[] { new PointF(left, cy - s / 2f), new PointF(left + s * 0.85f, cy), new PointF(left, cy + s / 2f) }
-                        : new[] { new PointF(left + s * 0.85f, cy - s / 2f), new PointF(left, cy), new PointF(left + s * 0.85f, cy + s / 2f) };
-                    switch (glyph)
-                    {
-                        case Glyph.Play:
-                            g.FillPolygon(brush, Triangle(cx - s * 0.35f, true));
-                            break;
-                        case Glyph.Pause:
-                            g.FillRectangle(brush, cx - s * 0.45f, cy - s / 2f, s * 0.3f, s);
-                            g.FillRectangle(brush, cx + s * 0.15f, cy - s / 2f, s * 0.3f, s);
-                            break;
-                        case Glyph.Previous:
-                            g.FillRectangle(brush, cx - s * 0.6f, cy - s / 2f, 2, s);
-                            g.FillPolygon(brush, Triangle(cx - s * 0.35f, false));
-                            break;
-                        case Glyph.Next:
-                            g.FillPolygon(brush, Triangle(cx - s * 0.5f, true));
-                            g.FillRectangle(brush, cx + s * 0.45f, cy - s / 2f, 2, s);
-                            break;
-                    }
-                }
-            }
-        }
-
-        void SetPlayGlyph(bool isPlaying) => ((GlyphButton)buttonPlay).Glyph = isPlaying ? Glyph.Pause : Glyph.Play;
-
-        static Button MakeButton(string text, string tip) => new Button
-        {
-            Text = text,
-            Tag = tip,
-            Dock = DockStyle.Fill,
-            Margin = new Padding(1),
-            FlatStyle = FlatStyle.System,
-            Font = new Font(SystemFonts.MessageBoxFont.FontFamily, 8.25f),
-        };
+        void SetPlayGlyph(bool isPlaying) => canvas.Playing = isPlaying;
 
         void SetTransportEnabled(bool enabled)
         {
-            seekBar.Enabled = buttonPrevious.Enabled = buttonPlay.Enabled = buttonNext.Enabled = enabled;
+            transportEnabled = enabled;
+            canvas.TransportEnabled = enabled;
         }
 
         /// <summary>True while the user can interact with the ffplay button.</summary>
         public bool PopoutEnabled
         {
-            get => buttonPopout.Enabled;
-            set => buttonPopout.Enabled = value;
+            get => canvas.PopoutEnabled;
+            set => canvas.PopoutEnabled = value;
         }
 
-        void SeekBar_ValueChanged(object sender, EventArgs e)
-        {
-            if (updatingSeekBar)
-                return;
-            RequestFrame(seekBar.Value, stopPlayback: true);
-        }
+        int LastFrame => Math.Max(0, frameCount - 1);
 
         void Canvas_MouseWheel(object sender, MouseEventArgs e)
         {
-            if (!seekBar.Enabled) return;
+            if (!transportEnabled) return;
             Step(e.Delta > 0 ? -1 : 1);
         }
 
         void Canvas_KeyDown(object sender, KeyEventArgs e)
         {
-            if (!seekBar.Enabled) return;
+            if (!transportEnabled) return;
             switch (e.KeyCode)
             {
                 case Keys.Space: TogglePlay(); e.Handled = true; break;
                 case Keys.Left: Step(-1); e.Handled = true; break;
                 case Keys.Right: Step(1); e.Handled = true; break;
                 case Keys.Home: RequestFrame(0, true); e.Handled = true; break;
-                case Keys.End: RequestFrame(seekBar.Maximum, true); e.Handled = true; break;
+                case Keys.End: RequestFrame(LastFrame, true); e.Handled = true; break;
             }
         }
 
         void Step(int delta)
         {
-            int target = Math.Max(0, Math.Min(seekBar.Maximum, displayedFrame + delta));
+            int target = Math.Max(0, Math.Min(LastFrame, displayedFrame + delta));
             RequestFrame(target, stopPlayback: true);
         }
 
@@ -246,12 +129,12 @@ namespace WebMConverter.Components
         {
             if (frameCount <= 0)
             {
-                labelPosition.Text = "";
+                canvas.TimeText = "";
                 return;
             }
             var now = FrameToTime(displayedFrame);
             var total = FrameToTime(frameCount);
-            labelPosition.Text = $"{FormatTime(now)} / {FormatTime(total)}  #{displayedFrame}";
+            canvas.TimeText = $"{FormatTime(now)} / {FormatTime(total)}  #{displayedFrame}";
         }
 
         TimeSpan FrameToTime(int n) => fpsNum == 0 ? TimeSpan.Zero : TimeSpan.FromSeconds((double)n * fpsDen / fpsNum);
@@ -523,12 +406,9 @@ namespace WebMConverter.Components
             fpsNum = info.FpsNum;
             fpsDen = info.FpsDen;
 
-            updatingSeekBar = true;
-            seekBar.Maximum = Math.Max(0, frameCount - 1);
-            seekBar.LargeChange = Math.Max(1, frameCount / 20);
-            if (displayedFrame > seekBar.Maximum) displayedFrame = seekBar.Maximum;
-            seekBar.Value = displayedFrame;
-            updatingSeekBar = false;
+            if (displayedFrame > LastFrame) displayedFrame = LastFrame;
+            canvas.SeekMaximum = LastFrame;
+            canvas.SeekValue = displayedFrame;
 
             SetTransportEnabled(true);
             canvas.Message = null;
@@ -568,17 +448,16 @@ namespace WebMConverter.Components
 
             displayedFrame = frame;
             if (frameCount > 0)
-            {
-                updatingSeekBar = true;
-                seekBar.Value = Math.Min(seekBar.Maximum, frame);
-                updatingSeekBar = false;
-            }
+                canvas.SeekValue = Math.Min(LastFrame, frame);
             UpdatePositionLabel();
         }
 
         #endregion
 
-        /// <summary>Double-buffered surface that letterboxes the current frame.</summary>
+        /// <summary>
+        /// Double-buffered surface that letterboxes the current frame and draws the playback controls
+        /// over the bottom of the video. The controls fade to barely visible while the mouse is away from them.
+        /// </summary>
         sealed class PreviewCanvas : Control
         {
             Bitmap image;
@@ -592,6 +471,10 @@ namespace WebMConverter.Components
                 BackColor = Color.FromArgb(24, 24, 24);
                 ForeColor = Color.Gainsboro;
                 TabStop = true;
+
+                timeFont = new Font(FontFamily.GenericMonospace, 8.25f);
+                buttonFont = new Font(SystemFonts.MessageBoxFont.FontFamily, 8.25f);
+                fadeTimer.Tick += FadeTimer_Tick;
             }
 
             public Bitmap Image { get => image; set { image = value; Invalidate(); } }
@@ -609,6 +492,322 @@ namespace WebMConverter.Components
                 return base.IsInputKey(keyData);
             }
 
+            #region Overlay controls
+
+            enum Part { None, Seek, Previous, Play, Next, Popout }
+            enum Glyph { Previous, Play, Pause, Next }
+
+            public event EventHandler<int> SeekRequested;
+            public event EventHandler PreviousClicked, PlayClicked, NextClicked, PopoutClicked, HoverTipChanged;
+
+            const int BarHeight = 50;      // height of the control row at the bottom of the video
+            const int ShadeExtra = 34;     // the dark gradient starts this far above the row
+            const int NearDistance = 60;   // how far above the shade the mouse counts as "near"
+            const float DimAlpha = 0.14f;  // opacity of the controls while the mouse is away
+            const float FadeInStep = 0.16f, FadeOutStep = 0.045f; // per timer tick
+
+            readonly System.Windows.Forms.Timer fadeTimer = new System.Windows.Forms.Timer { Interval = 15 };
+            readonly Font timeFont, buttonFont;
+
+            bool transportEnabled, popoutEnabled = true, playing, near;
+            int seekMaximum, seekValue, dragValue = -1;
+            string timeText = "";
+            Part hover = Part.None, pressed = Part.None;
+            float alpha = DimAlpha;
+
+            public bool TransportEnabled { get => transportEnabled; set { transportEnabled = value; InvalidateOverlay(); } }
+            public bool PopoutEnabled { get => popoutEnabled; set { popoutEnabled = value; InvalidateOverlay(); } }
+            public bool Playing { get => playing; set { playing = value; InvalidateOverlay(); } }
+            public int SeekMaximum { get => seekMaximum; set { seekMaximum = Math.Max(0, value); InvalidateOverlay(); } }
+            public int SeekValue { get => seekValue; set { seekValue = value; InvalidateOverlay(); } }
+            public string TimeText { get => timeText; set { timeText = value ?? ""; InvalidateOverlay(); } }
+
+            /// <summary>Tooltip for the overlay control under the mouse, or null.</summary>
+            public string HoverTip
+            {
+                get
+                {
+                    switch (hover)
+                    {
+                        case Part.Seek: return "Click or drag to seek (Home / End jump to the ends)";
+                        case Part.Previous: return "Previous frame (Left arrow)";
+                        case Part.Play: return "Play / pause (Space)";
+                        case Part.Next: return "Next frame (Right arrow)";
+                        case Part.Popout: return "Open the full preview with audio in ffplay";
+                        default: return null;
+                    }
+                }
+            }
+
+            struct OverlayLayout
+            {
+                public Rectangle Shade, Previous, Play, Next, Popout, TrackHit, TimeText;
+                public int TrackLeft, TrackRight, TrackY;
+            }
+
+            OverlayLayout GetLayout()
+            {
+                int w = ClientSize.Width, h = ClientSize.Height;
+                int cx = w / 2, cy = h - BarHeight / 2;
+                var l = new OverlayLayout
+                {
+                    Shade = new Rectangle(0, h - BarHeight - ShadeExtra, w, BarHeight + ShadeExtra),
+                    Play = Circle(cx, cy, 18),
+                    Previous = Circle(cx - 44, cy, 14),
+                    Next = Circle(cx + 44, cy, 14),
+                    Popout = new Rectangle(w - 12 - 56, cy - 12, 56, 24),
+                    TrackLeft = 16,
+                    TrackY = cy + 8,
+                };
+                // The seek bar fills the left side, up to the transport buttons.
+                l.TrackRight = Math.Max(l.TrackLeft + 24, l.Previous.Left - 22);
+                l.TimeText = new Rectangle(l.TrackLeft - 3, cy - 18, l.TrackRight - l.TrackLeft + 6, 16);
+                l.TrackHit = Rectangle.FromLTRB(l.TrackLeft - 8, l.TrackY - 11, l.TrackRight + 8, l.TrackY + 11);
+                return l;
+            }
+
+            static Rectangle Circle(int cx, int cy, int r) => new Rectangle(cx - r, cy - r, r * 2, r * 2);
+
+            Part HitTest(OverlayLayout l, Point p)
+            {
+                if (l.Popout.Contains(p)) return Part.Popout;
+                if (l.Play.Contains(p)) return Part.Play;
+                if (l.Previous.Contains(p)) return Part.Previous;
+                if (l.Next.Contains(p)) return Part.Next;
+                if (l.TrackHit.Contains(p)) return Part.Seek;
+                return Part.None;
+            }
+
+            bool IsEnabled(Part part)
+            {
+                switch (part)
+                {
+                    case Part.None: return false;
+                    case Part.Popout: return popoutEnabled;
+                    default: return transportEnabled;
+                }
+            }
+
+            void InvalidateOverlay()
+            {
+                if (IsHandleCreated)
+                    Invalidate(GetLayout().Shade);
+            }
+
+            void SetNear(bool value)
+            {
+                if (near == value) return;
+                near = value;
+                fadeTimer.Start();
+            }
+
+            void FadeTimer_Tick(object sender, EventArgs e)
+            {
+                float target = near ? 1f : DimAlpha;
+                alpha = target > alpha ? Math.Min(target, alpha + FadeInStep) : Math.Max(target, alpha - FadeOutStep);
+                if (alpha == target)
+                    fadeTimer.Stop();
+                InvalidateOverlay();
+            }
+
+            void SetHover(Part part)
+            {
+                if (hover == part) return;
+                hover = part;
+                Cursor = IsEnabled(part) ? Cursors.Hand : Cursors.Default;
+                InvalidateOverlay();
+                HoverTipChanged?.Invoke(this, EventArgs.Empty);
+            }
+
+            void SeekTo(OverlayLayout l, int x)
+            {
+                int value = 0;
+                if (seekMaximum > 0)
+                {
+                    double t = (double)(x - l.TrackLeft) / Math.Max(1, l.TrackRight - l.TrackLeft);
+                    value = (int)Math.Round(Math.Max(0, Math.Min(1, t)) * seekMaximum);
+                }
+                if (value == dragValue) return;
+                dragValue = value;
+                InvalidateOverlay();
+                SeekRequested?.Invoke(this, value);
+            }
+
+            protected override void OnMouseMove(MouseEventArgs e)
+            {
+                base.OnMouseMove(e);
+                var l = GetLayout();
+                if (pressed == Part.Seek)
+                    SeekTo(l, e.X);
+                SetNear(pressed != Part.None || e.Y >= l.Shade.Top - NearDistance);
+                SetHover(pressed != Part.None ? pressed : HitTest(l, e.Location));
+            }
+
+            protected override void OnMouseLeave(EventArgs e)
+            {
+                base.OnMouseLeave(e);
+                if (pressed == Part.None)
+                {
+                    SetNear(false);
+                    SetHover(Part.None);
+                }
+            }
+
+            protected override void OnMouseDown(MouseEventArgs e)
+            {
+                base.OnMouseDown(e);
+                Focus();
+                if (e.Button != MouseButtons.Left) return;
+
+                var l = GetLayout();
+                var part = HitTest(l, e.Location);
+                if (!IsEnabled(part)) return;
+
+                pressed = part;
+                Capture = true;
+                if (part == Part.Seek)
+                    SeekTo(l, e.X);
+                InvalidateOverlay();
+            }
+
+            protected override void OnMouseUp(MouseEventArgs e)
+            {
+                base.OnMouseUp(e);
+                if (e.Button != MouseButtons.Left || pressed == Part.None) return;
+
+                var part = pressed;
+                pressed = Part.None;
+                Capture = false;
+                var l = GetLayout();
+
+                if (part == Part.Seek)
+                {
+                    if (dragValue >= 0) seekValue = dragValue; // avoid a jump back until the frame arrives
+                    dragValue = -1;
+                }
+                else if (HitTest(l, e.Location) == part)
+                {
+                    switch (part)
+                    {
+                        case Part.Previous: PreviousClicked?.Invoke(this, EventArgs.Empty); break;
+                        case Part.Play: PlayClicked?.Invoke(this, EventArgs.Empty); break;
+                        case Part.Next: NextClicked?.Invoke(this, EventArgs.Empty); break;
+                        case Part.Popout: PopoutClicked?.Invoke(this, EventArgs.Empty); break;
+                    }
+                }
+
+                bool inside = ClientRectangle.Contains(e.Location);
+                SetNear(inside && e.Y >= l.Shade.Top - NearDistance);
+                SetHover(inside ? HitTest(l, e.Location) : Part.None);
+                InvalidateOverlay();
+            }
+
+            Color Ink(float opacity) => Color.FromArgb(Math.Max(0, Math.Min(255, (int)(255 * alpha * opacity))), Color.White);
+
+            void PaintOverlay(Graphics g)
+            {
+                var l = GetLayout();
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+
+                // Dark gradient behind the controls so they read on bright video.
+                var brushRect = new Rectangle(l.Shade.X, l.Shade.Y - 1, l.Shade.Width, l.Shade.Height + 2);
+                using (var shade = new LinearGradientBrush(brushRect, Color.FromArgb(0, 0, 0, 0),
+                    Color.FromArgb((int)(190 * alpha), 0, 0, 0), LinearGradientMode.Vertical))
+                    g.FillRectangle(shade, l.Shade);
+
+                // Seek bar (left)
+                float dim = transportEnabled ? 1f : 0.4f;
+                using (var track = new SolidBrush(Ink(0.3f * dim)))
+                    g.FillRectangle(track, l.TrackLeft, l.TrackY - 2, l.TrackRight - l.TrackLeft, 4);
+                if (transportEnabled)
+                {
+                    int value = dragValue >= 0 ? dragValue : seekValue;
+                    float t = seekMaximum > 0 ? Math.Max(0, Math.Min(1, (float)value / seekMaximum)) : 0;
+                    float x = l.TrackLeft + t * (l.TrackRight - l.TrackLeft);
+                    using (var fill = new SolidBrush(Color.FromArgb((int)(255 * alpha), 70, 160, 255)))
+                        g.FillRectangle(fill, l.TrackLeft, l.TrackY - 2, x - l.TrackLeft, 4);
+                    float r = hover == Part.Seek || pressed == Part.Seek ? 7 : 5;
+                    using (var thumb = new SolidBrush(Ink(1)))
+                        g.FillEllipse(thumb, x - r, l.TrackY - r, r * 2, r * 2);
+                }
+                if (timeText.Length > 0)
+                    using (var brush = new SolidBrush(Ink(0.9f)))
+                    using (var format = new StringFormat(StringFormatFlags.NoWrap) { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter })
+                        g.DrawString(timeText, timeFont, brush, l.TimeText, format);
+
+                // Transport buttons (centre)
+                DrawRoundButton(g, l.Previous, Part.Previous, Glyph.Previous, 10, false);
+                DrawRoundButton(g, l.Play, Part.Play, playing ? Glyph.Pause : Glyph.Play, 14, true);
+                DrawRoundButton(g, l.Next, Part.Next, Glyph.Next, 10, false);
+
+                // ffplay (right)
+                float popDim = popoutEnabled ? 1f : 0.4f;
+                using (var path = RoundedRect(l.Popout, 6))
+                {
+                    if (popoutEnabled && (hover == Part.Popout || pressed == Part.Popout))
+                        using (var back = new SolidBrush(Ink(pressed == Part.Popout ? 0.35f : 0.2f)))
+                            g.FillPath(back, path);
+                    using (var pen = new Pen(Ink(0.6f * popDim)))
+                        g.DrawPath(pen, path);
+                }
+                using (var brush = new SolidBrush(Ink(popDim)))
+                using (var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    g.DrawString("ffplay", buttonFont, brush, l.Popout, format);
+            }
+
+            void DrawRoundButton(Graphics g, Rectangle r, Part part, Glyph glyph, int size, bool primary)
+            {
+                bool enabled = IsEnabled(part);
+                float back = primary ? 0.16f : 0;
+                if (enabled && pressed == part) back = 0.4f;
+                else if (enabled && hover == part) back = primary ? 0.32f : 0.22f;
+                if (back > 0)
+                    using (var brush = new SolidBrush(Ink(back)))
+                        g.FillEllipse(brush, r);
+                using (var brush = new SolidBrush(Ink(enabled ? 1f : 0.4f)))
+                    DrawGlyph(g, brush, glyph, r.Left + r.Width / 2f, r.Top + r.Height / 2f, size);
+            }
+
+            static void DrawGlyph(Graphics g, Brush brush, Glyph glyph, float cx, float cy, float s)
+            {
+                PointF[] Triangle(float left, bool pointRight) => pointRight
+                    ? new[] { new PointF(left, cy - s / 2f), new PointF(left + s * 0.85f, cy), new PointF(left, cy + s / 2f) }
+                    : new[] { new PointF(left + s * 0.85f, cy - s / 2f), new PointF(left, cy), new PointF(left + s * 0.85f, cy + s / 2f) };
+                switch (glyph)
+                {
+                    case Glyph.Play:
+                        g.FillPolygon(brush, Triangle(cx - s * 0.35f, true));
+                        break;
+                    case Glyph.Pause:
+                        g.FillRectangle(brush, cx - s * 0.4f, cy - s / 2f, s * 0.28f, s);
+                        g.FillRectangle(brush, cx + s * 0.12f, cy - s / 2f, s * 0.28f, s);
+                        break;
+                    case Glyph.Previous:
+                        g.FillRectangle(brush, cx - s * 0.6f, cy - s / 2f, 2, s);
+                        g.FillPolygon(brush, Triangle(cx - s * 0.35f, false));
+                        break;
+                    case Glyph.Next:
+                        g.FillPolygon(brush, Triangle(cx - s * 0.5f, true));
+                        g.FillRectangle(brush, cx + s * 0.45f, cy - s / 2f, 2, s);
+                        break;
+                }
+            }
+
+            static GraphicsPath RoundedRect(Rectangle r, int radius)
+            {
+                int d = radius * 2;
+                var path = new GraphicsPath();
+                path.AddArc(r.Left, r.Top, d, d, 180, 90);
+                path.AddArc(r.Right - d, r.Top, d, d, 270, 90);
+                path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+                path.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
+                path.CloseFigure();
+                return path;
+            }
+
+            #endregion
+
             protected override void OnPaint(PaintEventArgs e)
             {
                 var g = e.Graphics;
@@ -624,12 +823,14 @@ namespace WebMConverter.Components
                     g.InterpolationMode = scale < 1 ? InterpolationMode.HighQualityBilinear : InterpolationMode.NearestNeighbor;
                     g.PixelOffsetMode = PixelOffsetMode.Half;
                     g.DrawImage(image, dest);
+                    g.PixelOffsetMode = PixelOffsetMode.Default;
                 }
 
                 string text = busy && message == null ? (image == null ? "Loading preview…" : null) : message;
                 if (text != null)
                 {
                     var box = Rectangle.Inflate(ClientRectangle, -12, -12);
+                    box.Height -= BarHeight; // keep clear of the controls
                     using (var brush = new SolidBrush(isError ? Color.FromArgb(255, 140, 120) : ForeColor))
                     using (var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisWord })
                         g.DrawString(isError ? "Preview error\n\n" + text : text, Font, brush, box, format);
@@ -646,12 +847,25 @@ namespace WebMConverter.Components
                         g.DrawString(badge, Font, brush, r.X + 4, r.Y + 2);
                 }
 
+                PaintOverlay(g);
+
                 if (Focused)
                     ControlPaint.DrawFocusRectangle(g, ClientRectangle);
             }
 
             protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }
             protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); Invalidate(); }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    fadeTimer.Dispose();
+                    timeFont.Dispose();
+                    buttonFont.Dispose();
+                }
+                base.Dispose(disposing);
+            }
         }
     }
 }
