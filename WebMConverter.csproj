@@ -357,10 +357,7 @@
     <Content Include="Binaries\Win32\AviSynthPlus-lgpl_for_used_libs.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Binaries\Win32\msvcp140.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Binaries\Win32\vcruntime140.dll">
+    <Content Include="Binaries\Win32\AviSynthPlus-BUILD.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Binaries\Win64\ffmpeg.exe">

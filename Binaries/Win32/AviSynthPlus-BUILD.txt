@@ -1,0 +1,16 @@
+AviSynth.dll in this folder is AviSynth+ 3.7.5 (32-bit), built from the official source:
+
+  https://github.com/AviSynth/AviSynthPlus  tag v3.7.5  (commit 6c7c266, "Bump to version 3.7.5")
+
+It is built so that it needs no Visual C++ redistributable: the C++ runtime is linked statically and the
+C runtime comes from the Universal CRT that is part of Windows 10/11 (api-ms-win-crt-*.dll / ucrtbase.dll).
+Nothing in the source was changed. Build commands (Visual Studio 2026, its bundled CMake):
+
+  cmake -S AviSynthPlus -B build -G "Visual Studio 18 2026" -A Win32 ^
+        -DENABLE_PLUGINS=OFF ^
+        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
+        -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded ^
+        "-DCMAKE_SHARED_LINKER_FLAGS=/NODEFAULTLIB:libucrt.lib ucrt.lib"
+  cmake --build build --config Release --target AvsCore
+
+AviSynth+ is licensed under the GNU GPL v2 or later with a linking exception; see AviSynthPlus-license.txt.

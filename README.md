@@ -21,8 +21,9 @@ A wrapper around ffmpeg and AviSynth made for converting videos to WebM without 
 
 Important to know:
 * Requires .NET Framework 4.8 (included with Windows 10 and 11)
-* Already includes ffmpeg and [AviSynth+][AviSynth] 3.7.5 (32-bit, with the Visual C++ runtime it needs), so nothing else has to be installed.
-  The bundled AviSynth+ is GPLv2 (see `Binaries\Win32\AviSynthPlus-license.txt`); source: https://github.com/AviSynth/AviSynthPlus
+* Already includes ffmpeg and [AviSynth+][AviSynth] 3.7.5 (32-bit), so nothing else has to be installed — not even a Visual C++ redistributable:
+  the bundled AviSynth+ is built to use only the C runtime that comes with Windows 10/11.
+  It is GPLv2 (see `Binaries\Win32\AviSynthPlus-license.txt`); source and build steps: `Binaries\Win32\AviSynthPlus-BUILD.txt`.
 * Only works on Windows (I assume Linux users don't need GUIs)
 
 This software is released under the MIT license. See LICENSE.md.
