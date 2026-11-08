@@ -11,6 +11,10 @@ namespace WebMConverter
     {
         [DllImport("kernel32", SetLastError = true)]
         public static extern IntPtr LoadLibrary(string lpFileName);
+        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hFile, uint dwFlags);
+        /// <summary>Resolve the DLL's own dependencies from its folder first.</summary>
+        public const uint LOAD_WITH_ALTERED_SEARCH_PATH = 0x00000008;
         [DllImport("kernel32", CharSet = CharSet.Auto)]
         public static extern int GetShortPathName([MarshalAs(UnmanagedType.LPTStr)] string path, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder shortPath, int shortPathLength);
         [DllImport("gdi32", CharSet = CharSet.Auto)]

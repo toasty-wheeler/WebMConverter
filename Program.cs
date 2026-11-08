@@ -66,6 +66,28 @@ namespace WebMConverter
         public static List<string> AttachmentList;
 
         /// <summary>
+        /// Loads AviSynth into this process. AviSynth+ (32-bit) ships in Binaries\Win32 together with the VC++ runtime
+        /// it needs, so no separate install is required. Loading it by full path makes the live preview's
+        /// [DllImport("avisynth")] bind to this copy; the bundled ffmpeg/ffprobe/ffplay pick it up on their own because
+        /// it sits next to them. An installed AviSynth is only used as a fallback if the bundled copy is missing.
+        /// </summary>
+        internal static bool LoadAviSynth(out string error)
+        {
+            error = null;
+            var bundled = System.IO.Path.Combine(Environment.CurrentDirectory, "Binaries", "Win32", "AviSynth.dll");
+            if (System.IO.File.Exists(bundled))
+            {
+                if (NativeMethods.LoadLibraryEx(bundled, IntPtr.Zero, NativeMethods.LOAD_WITH_ALTERED_SEARCH_PATH) != IntPtr.Zero)
+                    return true;
+                error = new Win32Exception(Marshal.GetLastWin32Error()).Message;
+            }
+            if (NativeMethods.LoadLibrary("avisynth") != IntPtr.Zero)
+                return true;
+            error = error ?? new Win32Exception(Marshal.GetLastWin32Error()).Message;
+            return false;
+        }
+
+        /// <summary>
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
@@ -75,12 +97,11 @@ namespace WebMConverter
             // started from a terminal, a shortcut or "Open with" on a file elsewhere.
             Environment.CurrentDirectory = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
 
-            // Check for AviSynth
-            if (NativeMethods.LoadLibrary("avisynth") == IntPtr.Zero)
+            if (!LoadAviSynth(out string errorMessage))
             {
-                var errorMessage = new Win32Exception(Marshal.GetLastWin32Error()).Message;
                 MessageBox.Show(
-                   $"Failed to load AviSynth: {errorMessage}.{Environment.NewLine}" + 
+                   $"Failed to load AviSynth: {errorMessage}.{Environment.NewLine}" +
+                    "The bundled copy in Binaries\\Win32 seems to be missing or broken. " +
                     "I'll open the download page, go ahead and install it.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Process.Start("http://avisynth.nl/index.php/Main_Page#Official_builds");
