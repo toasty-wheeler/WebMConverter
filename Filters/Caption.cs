@@ -237,7 +237,20 @@ namespace WebMConverter
 
         public void BeforeEncode(Size resolution)
         {
-            renderedCaptionFilename = Path.Combine(Path.GetTempPath(), "webmconverter-caption.png");
+            // AviSynth's AVISource keeps the file open while a script uses it (e.g. the live preview), so every
+            // distinct rendering gets its own file name and an existing one is reused instead of overwritten.
+            string key = string.Join("|", Text, Style.FontFamily.Name, Style.Style, Style.Size, Placement.X, Placement.Y,
+                TextColor.ToArgb(), BorderColor.ToArgb(), BorderThickness, resolution.Width, resolution.Height);
+            string name;
+            using (var sha = System.Security.Cryptography.SHA1.Create())
+                name = "webmconverter-caption-" + BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key)), 0, 8).Replace("-", "") + ".avi";
+            renderedCaptionFilename = Path.Combine(Path.GetTempPath(), name);
+            if (File.Exists(renderedCaptionFilename))
+                return;
+
+            // Clean up earlier renderings; ones still open in AviSynth are left for next time
+            foreach (var old in Directory.GetFiles(Path.GetTempPath(), "webmconverter-caption*.*"))
+                try { File.Delete(old); } catch (IOException) { } catch (UnauthorizedAccessException) { }
 
             using (var renderedCaption = new Bitmap(resolution.Width, resolution.Height))
             using (var g = Graphics.FromImage(renderedCaption))
@@ -250,10 +263,15 @@ namespace WebMConverter
                 g.FillPath(new SolidBrush(TextColor), path);
                 g.DrawPath(new Pen(new SolidBrush(BorderColor), BorderThickness), path);
 
-                renderedCaption.Save(renderedCaptionFilename, System.Drawing.Imaging.ImageFormat.Png);
+                // A one-frame uncompressed AVI, read by AviSynth's built-in AVISource (no ImageSeq plugin needed)
+                Components.StillImageAvi.Write(renderedCaption, renderedCaptionFilename);
             }
         }
 
-        public override string ToString() => $"Overlay(ImageSource(\"{renderedCaptionFilename}\"), mask=ImageSource(\"{renderedCaptionFilename}\",pixel_type=\"RGB32\").ShowAlpha(pixel_type=\"RGB32\"))";
+        public override string ToString()
+        {
+            var source = Components.StillImageAvi.Source(GetCompatiblePath(renderedCaptionFilename));
+            return $"Overlay({source}, mask={source}.ShowAlpha(pixel_type=\"RGB32\"))";
+        }
     }
 }

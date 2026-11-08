@@ -1840,11 +1840,7 @@ namespace WebMConverter
                 var shortPluginPath = GetCompatiblePath(pluginPath);
 
                 avscript.WriteLine($@"PluginPath = ""{shortPluginPath}\""");
-                avscript.WriteLine(@"try { LoadPlugin(PluginPath+""ffms2.dll"") } catch (_) { LoadCPlugin(PluginPath+""ffms2.dll"") }");
-                // ImageSource (used by Caption and Overlay) lives in the ImageSeq plugin, bundled with AviSynth+
-                if (processingScript != null && processingScript.IndexOf("ImageSource", StringComparison.OrdinalIgnoreCase) >= 0)
-                    avscript.WriteLine(@"LoadPlugin(PluginPath+""ImageSeq.dll"")");
-                if (Filters.Subtitle != null)
+                avscript.WriteLine(@"try { LoadPlugin(PluginPath+""ffms2.dll"") } catch (_) { LoadCPlugin(PluginPath+""ffms2.dll"") }");                if (Filters.Subtitle != null)
                 {
                     string plugin;
 

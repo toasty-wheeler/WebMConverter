@@ -7,7 +7,8 @@ v2.27.0 (toasty-wheeler fork)
   - Script errors are shown in the panel instead of a popup.
   - "Hide preview" in the status bar collapses it; the choice is remembered. The old ffplay preview (with audio) is still there.
 - The preview's seek bar, play buttons and ffplay button sit over the bottom of the video and fade out while the mouse is away.
-- AviSynth no longer has to be installed: AviSynth+ 3.7.5 (32-bit), its ImageSeq plugin and the Visual C++ runtime are bundled in Binaries\Win32.
+- AviSynth no longer has to be installed: AviSynth+ 3.7.5 (32-bit) and the Visual C++ runtime it needs are bundled in Binaries\Win32.
+- Caption and Overlay no longer need the ImageSeq plugin: their images are handed to AviSynth as one-frame uncompressed AVIs (built-in AVISource).
   An installed AviSynth is only used if the bundled copy is missing.
 - The main window can now be resized and maximized.
 - Dark mode. The theme button in the status bar switches between Automatic (follows the Windows app mode, the default), Dark and Light. All dialogs follow it.

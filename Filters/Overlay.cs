@@ -217,8 +217,19 @@ namespace WebMConverter
 
         public override string ToString()
         {
-            var shortFileName = GetCompatiblePath(FileName);
-            return $"Overlay(ImageSource(\"{shortFileName}\"), x={Placement.X}, y={Placement.Y}, mask=ImageSource(\"{shortFileName}\",pixel_type=\"RGB32\").ShowAlpha(pixel_type=\"RGB32\"))";
+            // The image becomes a one-frame uncompressed AVI (cached), read by AviSynth's built-in AVISource
+            string avi;
+            try
+            {
+                avi = Components.StillImageAvi.FromImageFile(FileName);
+            }
+            catch (Exception e)
+            {
+                // Surface it as a script error (preview panel / encode log) instead of an exception in the UI
+                return $"Assert(false, \"Overlay image could not be read: {(e.Message + " " + FileName).Replace("\"", "'")}\")";
+            }
+            var source = Components.StillImageAvi.Source(GetCompatiblePath(avi));
+            return $"Overlay({source}, x={Placement.X}, y={Placement.Y}, mask={source}.ShowAlpha(pixel_type=\"RGB32\"))";
         }
     }
 }
