@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -66,8 +65,8 @@ namespace WebMConverter
         public static List<string> AttachmentList;
 
         /// <summary>
-        /// Loads AviSynth into this process. AviSynth+ (32-bit) ships in Binaries\Win32 together with the VC++ runtime
-        /// it needs, so no separate install is required. Loading it by full path makes the live preview's
+        /// Loads AviSynth into this process. AviSynth+ (32-bit) ships in Binaries\Win32 and needs only the C runtime that
+        /// comes with Windows, so no separate install is required. Loading it by full path makes the live preview's
         /// [DllImport("avisynth")] bind to this copy; the bundled ffmpeg/ffprobe/ffplay pick it up on their own because
         /// it sits next to them. An installed AviSynth is only used as a fallback if the bundled copy is missing.
         /// </summary>
@@ -115,8 +114,6 @@ namespace WebMConverter
                 Properties.Settings.Default.TryUpgrade = false;
                 Properties.Settings.Default.Save();
             }
-
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
 
             Task.Factory.StartNew(VideoDownload.CheckEnabled);
             Task.Factory.StartNew(ShareXUpload.CheckEnabled);

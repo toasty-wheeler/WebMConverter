@@ -1,3 +1,11 @@
+v2.28.0 (toasty-wheeler fork)
+=======
+- Removed the updater. It checked upstream's server, which doesn't know about this fork; new versions are on the GitHub Releases page.
+  The program no longer connects to the internet on startup (no update check, no upstream notice popup).
+- Taskbar progress now uses a small built-in wrapper instead of the Windows API Code Pack, so its two DLLs (640 KB) are gone.
+- Removed files nothing used: msvcp100.dll, Semver.dll, the updater, and the ILMerge build step.
+- The download is smaller and has fewer files.
+
 v2.27.0 (toasty-wheeler fork)
 =======
 - Added a live preview panel between the Main box and the option tabs (drag the divider to resize it).

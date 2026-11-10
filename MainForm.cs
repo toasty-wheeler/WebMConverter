@@ -5,14 +5,12 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml;
 using System.Xml.XPath;
-using Microsoft.WindowsAPICodePack.Taskbar;
 using StopWatch = System.Timers.Timer;
 
 using WebMConverter.Components;
@@ -118,6 +116,7 @@ namespace WebMConverter
             boxAudio.Checked = Properties.Settings.Default.AudioEnabled;
 
             taskbarManager = TaskbarManager.Instance;
+            taskbarManager.Owner = this;
 
             SetupLivePreview();
             SetupThemeButton();
@@ -219,9 +218,6 @@ namespace WebMConverter
             var args = Environment.GetCommandLineArgs();
             if (args.Length > 1) // We were "Open with..."ed with a file
                 SetFile(args[1]);
-#if !DEBUG
-            CheckUpdate();
-#endif
         }
 
         void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -259,87 +255,6 @@ namespace WebMConverter
                     boxIndexingProgress.Text = string.Join(Environment.NewLine, indexingProgressLines.Skip(1));
                 }
             });
-        }
-
-        async void CheckUpdate()
-        {
-            if (!Properties.Settings.Default.SeenNotice2)
-            {
-                try
-                {
-                    using (var noticeChecker = new WebClient())
-                    {
-                        const string caption = "Notice";
-                        var result = await noticeChecker.DownloadStringTaskAsync(@"https://nixx.is-fantabulo.us/WebM for Retards/NOTICE");
-                        var urlAndMessage = result.Split(new[] { '\n' }, 2);
-                        switch (MessageBox.Show(urlAndMessage[1], caption, MessageBoxButtons.YesNo, MessageBoxIcon.Question))
-                        {
-                            case DialogResult.Yes:
-                                if (urlAndMessage[0].StartsWith("http")) // just in case someone hacks my anus, let's not give him any ways to execute arbitrary code on all my users
-                                    System.Diagnostics.Process.Start(urlAndMessage[0]);
-
-                                Application.Exit();
-                                break;
-                            case DialogResult.No:
-                                Properties.Settings.Default.SeenNotice2 = true;
-                                Properties.Settings.Default.Save();
-                                break;
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    if (!e.Message.Contains("404"))
-                    {
-                        this.InvokeIfRequired(() =>
-                        {
-                            showToolTip("Update checking failed! " + e.Message, 2000);
-                        });
-                        return;
-                    }
-                }
-            }
-
-            var checker = new Updater();
-
-            await Task.Run(() =>
-            {
-                var checkerResult = checker.Check(Application.ProductVersion);
-
-                var success = checkerResult.Item1;
-                var updateAvailable = checkerResult.Item2;
-                var newVersionOrMessage = checkerResult.Item3;
-                var changelog = checkerResult.Item4;
-
-                if (success == false)
-                {
-                    this.InvokeIfRequired(() =>
-                    {
-                        showToolTip("Update checking failed! " + newVersionOrMessage, 2000);
-                    });
-                    return;
-                }
-
-                if (updateAvailable == false)
-                {
-                    this.InvokeIfRequired(() =>
-                    {
-                        showToolTip("Up to date!", 1000);
-                    });
-                    return;
-                }
-
-                this.InvokeIfRequired(() =>
-                {
-                    var result = new UpdateNotifyDialog(newVersionOrMessage, changelog).ShowDialog(this);
-                    if (result == DialogResult.Yes)
-                    {
-                        System.Diagnostics.Process.Start(checker.UpdaterPath, @"update");
-                        Application.Exit();
-                    }
-                });
-            });
-
         }
 
         [System.Diagnostics.DebuggerStepThrough]

@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
-using Microsoft.WindowsAPICodePack.Taskbar;
+using WebMConverter.Components;
 using Timer = System.Windows.Forms.Timer;
 using static WebMConverter.Utility;
 
